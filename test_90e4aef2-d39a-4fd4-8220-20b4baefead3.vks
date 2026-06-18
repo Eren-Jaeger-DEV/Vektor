@@ -1,0 +1,12 @@
+
+      import "stdlib/memory.vks";
+
+      function main() {
+        let buf: ptr<byte> = alloc_bytes(4);
+        buf[0] = 'A';
+        buf[1] = 'B';
+        print(buf[0]);
+        print(buf[1]);
+        free(buf);
+      }
+    

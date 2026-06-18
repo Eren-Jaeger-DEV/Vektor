@@ -1,0 +1,9 @@
+function main() {
+  print("Hello from Viktor Script VM!");
+  
+  let sum: i32 = 0;
+  for (let i: i32 = 1; i <= 10; i++) {
+    sum = sum + i;
+  }
+  print("Sum 1..10 = " + sum);
+}

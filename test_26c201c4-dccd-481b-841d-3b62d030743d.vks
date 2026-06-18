@@ -1,0 +1,8 @@
+function main() { 
+      let o: Result<i32, str> = Ok(42);
+      let e: Result<i32, str> = Err("bad");
+      print(o.ok);
+      print(o.value);
+      print(e.ok);
+      print(e.error);
+     }

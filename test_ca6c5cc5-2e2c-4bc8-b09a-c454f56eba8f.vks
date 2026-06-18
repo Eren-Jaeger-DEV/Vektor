@@ -1,0 +1,6 @@
+function main() { 
+      let s: str = "Viktor";
+      print(charAt(s, 0));
+      print(indexOf(s, "k"));
+      print(indexOf(s, "z"));
+     }

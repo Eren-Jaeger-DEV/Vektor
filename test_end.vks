@@ -1,0 +1,25 @@
+struct Lexer {
+  source: str;
+  pos: i32;
+}
+
+function is_at_end(l: Lexer) -> bool {
+  return l.pos >= l.source.len;
+}
+
+function lexer_new() -> Lexer {
+  let l: Lexer = new Lexer;
+  return l;
+}
+
+function main() {
+  let l: Lexer = lexer_new();
+  l.source = "test";
+  l.pos = 100;
+  
+  if (is_at_end(l)) {
+    print("true");
+  } else {
+    print("false");
+  }
+}

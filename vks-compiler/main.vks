@@ -1,0 +1,86 @@
+import "lexer.vks";
+import "parser.vks";
+import "compiler.vks";
+import "serializer.vks";
+
+function compile_file_with_imports(file_path: str) -> ASTNode {
+  let source: str = read_file(file_path);
+  if (source == null or source == "") {
+    print("Failed to read file:", file_path);
+    return null;
+  }
+  let tokens: Token = tokenize(source);
+  
+  let d_curr: Token = tokens;
+  while (d_curr != null) {
+    print("Token:", d_curr.type, d_curr.lexeme);
+    d_curr = d_curr.next;
+  }
+  
+  print("Tokenized:", file_path);
+  let ast: ASTNode = parse(tokens);
+  print("Parsed:", file_path);
+  
+  let merged_decls_head: ASTNode = null;
+  let merged_decls_tail: ASTNode = null;
+  
+  let curr_import: ASTNode = ast.left;
+  while (curr_import != null) {
+    let imported_path: str = curr_import.str_val;
+    if (not (charAt(imported_path, 0) == "s" and charAt(imported_path, 1) == "t" and charAt(imported_path, 2) == "d")) {
+      imported_path = "vks-compiler/" + imported_path;
+    }
+      let imported_ast: ASTNode = compile_file_with_imports(imported_path);
+      
+      let curr_decl: ASTNode = imported_ast.right;
+      while (curr_decl != null) {
+        if (merged_decls_head == null) {
+          merged_decls_head = curr_decl;
+          merged_decls_tail = curr_decl;
+        } else {
+          merged_decls_tail.next = curr_decl;
+          merged_decls_tail = curr_decl;
+        }
+        curr_decl = curr_decl.next;
+      }
+    curr_import = curr_import.next;
+  }
+  
+  let curr_decl2: ASTNode = ast.right;
+  while (curr_decl2 != null) {
+    if (merged_decls_head == null) {
+      merged_decls_head = curr_decl2;
+      merged_decls_tail = curr_decl2;
+    } else {
+      merged_decls_tail.next = curr_decl2;
+      merged_decls_tail = curr_decl2;
+    }
+    curr_decl2 = curr_decl2.next;
+  }
+  
+  let merged_ast: ASTNode = ast_node_new("Program", 1, 1);
+  merged_ast.right = merged_decls_head;
+  return merged_ast;
+}
+
+function compile_file(file_path: str) -> Compiler {
+  let ast: ASTNode = compile_file_with_imports(file_path);
+  let c: Compiler = compile(ast);
+  return c;
+}
+
+function main() {
+  if (args_count() < 1) {
+    print("Usage: vks compile <target.vks> [-o output.vkb]");
+    return null;
+  }
+  let target_file: str = args_get(0);
+  let output_file: str = "output.vkb";
+  if (args_count() >= 2) {
+    output_file = args_get(1);
+  }
+  
+  print("Bootstrapping compiler...");
+  let c: Compiler = compile_file(target_file);
+  serialize_compiler(c, output_file);
+}

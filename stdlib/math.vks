@@ -1,0 +1,44 @@
+// stdlib/math.vks — Math utilities
+// Native builtins: sqrt, pow, sin, cos, abs, floor, ceil
+
+const STDLIB_MATH_VERSION: i32 = 1;
+
+fn min(a: i32, b: i32) -> i32 {
+  if a < b {
+    return a;
+  }
+  return b;
+}
+
+fn max(a: i32, b: i32) -> i32 {
+  if a > b {
+    return a;
+  }
+  return b;
+}
+
+fn clamp(value: i32, lo: i32, hi: i32) -> i32 {
+  if value < lo {
+    return lo;
+  }
+  if value > hi {
+    return hi;
+  }
+  return value;
+}
+
+fn add(a: i32, b: i32) -> i32 {
+  return a + b;
+}
+
+fn sub(a: i32, b: i32) -> i32 {
+  return a - b;
+}
+
+fn mul(a: i32, b: i32) -> i32 {
+  return a * b;
+}
+
+fn div(a: i32, b: i32) -> i32 {
+  return a / b;
+}

@@ -1,0 +1,6 @@
+// Hello World — Viktor Script
+// The simplest valid VKS program.
+
+function main() {
+    print("Hello from Viktor Script");
+}

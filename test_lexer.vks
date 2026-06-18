@@ -1,0 +1,11 @@
+#include "vks-compiler/lexer.vks"
+
+function main() {
+  let l: Lexer = lexer_new("function");
+  tokenize(l);
+  let curr: Token = l.tokens_head;
+  while (curr != null) {
+    print(curr.type);
+    curr = curr.next;
+  }
+}

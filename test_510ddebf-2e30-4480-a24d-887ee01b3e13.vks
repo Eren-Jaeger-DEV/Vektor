@@ -1,0 +1,10 @@
+
+      import "stdlib/math.vks";
+
+      function main() {
+        print(min(3, 7));
+        print(max(3, 7));
+        print(clamp(15, 0, 10));
+        print(add(5, 10));
+      }
+    

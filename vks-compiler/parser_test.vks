@@ -1,0 +1,94 @@
+import "lexer.vks";
+import "parser.vks";
+
+function print_ast(node: ASTNode, depth: i32) {
+  if (node == null) { return; }
+  
+  let indent: str = "";
+  let i: i32 = 0;
+  while (i < depth) {
+    indent = indent + "  ";
+    i = i + 1;
+  }
+
+  let name_str: str = "";
+  if (node.name != "") { name_str = node.name; }
+  let op_str: str = "";
+  if (node.op != "") { op_str = node.op; }
+
+  print(indent, node.kind, name_str, op_str);
+  
+  if (node.kind == "IntegerLiteral") { print(indent, "  Value:", node.int_val); }
+  if (node.kind == "StringLiteral" or node.kind == "Identifier" or node.kind == "PrimitiveType" or node.kind == "ImportDecl") { 
+    if (node.name == "") { print(indent, "  Value:", node.str_val); } 
+  }
+
+  if (node.kind == "Program") {
+    if (node.left != null) { 
+      print(indent, "  Imports:");
+      let curr: ASTNode = node.left;
+      while (curr != null) {
+        print_ast(curr, depth + 2);
+        curr = curr.next;
+      }
+    }
+    if (node.right != null) { 
+      print(indent, "  Declarations:");
+      let curr: ASTNode = node.right;
+      while (curr != null) {
+        print_ast(curr, depth + 2);
+        curr = curr.next;
+      }
+    }
+  } else {
+    if (node.left != null) { print(indent, "  Left:"); print_ast(node.left, depth + 1); }
+    if (node.right != null) { print(indent, "  Right:"); print_ast(node.right, depth + 1); }
+  }
+  if (node.condition != null) { print(indent, "  Condition:"); print_ast(node.condition, depth + 1); }
+  if (node.initializer != null) { print(indent, "  Init:"); print_ast(node.initializer, depth + 1); }
+  if (node.increment != null) { print(indent, "  Update:"); print_ast(node.increment, depth + 1); }
+  if (node.body != null) { print(indent, "  Body:"); print_ast(node.body, depth + 1); }
+  if (node.else_body != null) { print(indent, "  Else:"); print_ast(node.else_body, depth + 1); }
+  if (node.callee != null) { print(indent, "  Callee:"); print_ast(node.callee, depth + 1); }
+  if (node.object != null) { print(indent, "  Object:"); print_ast(node.object, depth + 1); }
+  if (node.index != null) { print(indent, "  Index:"); print_ast(node.index, depth + 1); }
+  if (node.returnType != null) { print(indent, "  Type:"); print_ast(node.returnType, depth + 1); }
+
+  if (node.args != null) {
+    print(indent, "  Args:");
+    let curr: ASTNode = node.args;
+    while (curr != null) {
+      print_ast(curr, depth + 2);
+      curr = curr.next;
+    }
+  }
+
+  if (node.fields != null) {
+    print(indent, "  Fields:");
+    let curr: ASTNode = node.fields;
+    while (curr != null) {
+      print_ast(curr, depth + 2);
+      curr = curr.next;
+    }
+  }
+
+  if (node.params != null) {
+    print(indent, "  Params:");
+    let curr: ASTNode = node.params;
+    while (curr != null) {
+      print_ast(curr, depth + 2);
+      curr = curr.next;
+    }
+  }
+}
+
+function main() {
+  let source: str = "import \"math.vks\"; \n struct Point { x: i32; y: i32; } \n fn add(a: i32, b: i32) -> i32 { return a + b; }";
+  print("Source:", source);
+  
+  let lexer: Lexer = lexer_new(source);
+  let tokens: Token = tokenize(lexer);
+  
+  let ast: ASTNode = parse(tokens);
+  print_ast(ast, 0);
+}

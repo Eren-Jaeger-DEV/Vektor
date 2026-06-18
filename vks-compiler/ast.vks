@@ -1,0 +1,77 @@
+// ============================================================
+// Viktor Script Self-Hosted Compiler — AST
+// ============================================================
+
+struct ASTNode {
+  kind: str;
+  line: i32;
+  column: i32;
+
+  // General string names (Identifier, PrimitiveType, properties)
+  name: str;
+
+  // Literals
+  int_val: i32;
+  float_val: f64;
+  str_val: str;
+  bool_val: bool;
+
+  // Binary / Unary / Assignment
+  left: ASTNode;
+  right: ASTNode;
+  op: str;
+
+  // Control Flow
+  condition: ASTNode;
+  body: ASTNode;
+  else_body: ASTNode;
+  
+  // For loops and variables
+  initializer: ASTNode;
+  increment: ASTNode;
+
+  // Calls and Access
+  callee: ASTNode;
+  args: ASTNode; // linked list via next
+  object: ASTNode;
+  property: str;
+  index: ASTNode;
+
+  // Structs and Functions
+  fields: ASTNode; // linked list via next
+  params: ASTNode; // linked list via next
+  returnType: ASTNode; // TypeNode
+
+  // Linked list pointer for lists (statements in block, args, params)
+  next: ASTNode;
+}
+
+function ast_node_new(kind: str, line: i32, column: i32) -> ASTNode {
+  return ASTNode {
+    kind: kind,
+    line: line,
+    column: column,
+    name: "",
+    int_val: 0,
+    float_val: 0.0,
+    str_val: "",
+    bool_val: false,
+    left: null,
+    right: null,
+    op: "",
+    condition: null,
+    body: null,
+    else_body: null,
+    initializer: null,
+    increment: null,
+    callee: null,
+    args: null,
+    object: null,
+    property: "",
+    index: null,
+    fields: null,
+    params: null,
+    returnType: null,
+    next: null
+  };
+}

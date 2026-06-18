@@ -1,0 +1,142 @@
+// ============================================================
+// Viktor Script — Token Types
+// ============================================================
+
+const TOKEN_INTEGER_LITERAL: str = "INTEGER_LITERAL";
+const TOKEN_FLOAT_LITERAL: str = "FLOAT_LITERAL";
+const TOKEN_STRING_LITERAL: str = "STRING_LITERAL";
+const TOKEN_CHAR_LITERAL: str = "CHAR_LITERAL";
+const TOKEN_IDENTIFIER: str = "IDENTIFIER";
+
+const TOKEN_LET: str = "LET";
+const TOKEN_CONST: str = "CONST";
+const TOKEN_FUNCTION: str = "FUNCTION";
+const TOKEN_FN: str = "FN";
+const TOKEN_RETURN: str = "RETURN";
+const TOKEN_IF: str = "IF";
+const TOKEN_ELSE: str = "ELSE";
+const TOKEN_WHILE: str = "WHILE";
+const TOKEN_FOR: str = "FOR";
+const TOKEN_IN: str = "IN";
+const TOKEN_STRUCT: str = "STRUCT";
+const TOKEN_TRUE: str = "TRUE";
+const TOKEN_FALSE: str = "FALSE";
+const TOKEN_NULL: str = "NULL";
+const TOKEN_AND: str = "AND";
+const TOKEN_OR: str = "OR";
+const TOKEN_NOT: str = "NOT";
+const TOKEN_IMPORT: str = "IMPORT";
+const TOKEN_BREAK: str = "BREAK";
+const TOKEN_ALLOC: str = "ALLOC";
+const TOKEN_FREE: str = "FREE";
+const TOKEN_CAST: str = "CAST";
+const TOKEN_RESULT: str = "RESULT";
+const TOKEN_OK: str = "OK";
+const TOKEN_ERR: str = "ERR";
+const TOKEN_CLONE: str = "CLONE";
+const TOKEN_MOVE: str = "MOVE";
+const TOKEN_MAP: str = "MAP";
+
+const TOKEN_VOID: str = "VOID";
+const TOKEN_BOOL_TYPE: str = "BOOL_TYPE";
+const TOKEN_BYTE: str = "BYTE";
+const TOKEN_STR: str = "STR";
+const TOKEN_I8: str = "I8";
+const TOKEN_I16: str = "I16";
+const TOKEN_I32: str = "I32";
+const TOKEN_I64: str = "I64";
+const TOKEN_F32: str = "F32";
+const TOKEN_F64: str = "F64";
+const TOKEN_PTR: str = "PTR";
+
+const TOKEN_PLUS: str = "PLUS";
+const TOKEN_MINUS: str = "MINUS";
+const TOKEN_STAR: str = "STAR";
+const TOKEN_SLASH: str = "SLASH";
+const TOKEN_PERCENT: str = "PERCENT";
+const TOKEN_AMPERSAND: str = "AMPERSAND";
+const TOKEN_BANG: str = "BANG";
+const TOKEN_EQUALS: str = "EQUALS";
+const TOKEN_DOUBLE_EQUALS: str = "DOUBLE_EQUALS";
+const TOKEN_NOT_EQUALS: str = "NOT_EQUALS";
+const TOKEN_LESS: str = "LESS";
+const TOKEN_GREATER: str = "GREATER";
+const TOKEN_LESS_EQUALS: str = "LESS_EQUALS";
+const TOKEN_GREATER_EQUALS: str = "GREATER_EQUALS";
+const TOKEN_AND_AND: str = "AND_AND";
+const TOKEN_OR_OR: str = "OR_OR";
+const TOKEN_PIPE: str = "PIPE";
+const TOKEN_PLUS_PLUS: str = "PLUS_PLUS";
+const TOKEN_MINUS_MINUS: str = "MINUS_MINUS";
+const TOKEN_ARROW: str = "ARROW";
+
+const TOKEN_LPAREN: str = "LPAREN";
+const TOKEN_RPAREN: str = "RPAREN";
+const TOKEN_LBRACE: str = "LBRACE";
+const TOKEN_RBRACE: str = "RBRACE";
+const TOKEN_LBRACKET: str = "LBRACKET";
+const TOKEN_RBRACKET: str = "RBRACKET";
+const TOKEN_SEMICOLON: str = "SEMICOLON";
+const TOKEN_COLON: str = "COLON";
+const TOKEN_COMMA: str = "COMMA";
+const TOKEN_DOT: str = "DOT";
+const TOKEN_DOUBLE_DOT: str = "DOUBLE_DOT";
+const TOKEN_QUESTION: str = "QUESTION";
+const TOKEN_COMMENT: str = "COMMENT";
+const TOKEN_EOF: str = "EOF";
+const TOKEN_UNKNOWN: str = "UNKNOWN";
+
+struct Token {
+  type: str;
+  lexeme: str;
+  line: i32;
+  column: i32;
+  num_val: f64;
+  next: ptr<Token>;
+}
+
+function init_keywords() -> map<str> {
+  let m: map<str> = map_create();
+  map_set(m, "let", TOKEN_LET);
+  map_set(m, "const", TOKEN_CONST);
+  map_set(m, "function", TOKEN_FUNCTION);
+  map_set(m, "fn", TOKEN_FN);
+  map_set(m, "return", TOKEN_RETURN);
+  map_set(m, "if", TOKEN_IF);
+  map_set(m, "else", TOKEN_ELSE);
+  map_set(m, "while", TOKEN_WHILE);
+  map_set(m, "for", TOKEN_FOR);
+  map_set(m, "in", TOKEN_IN);
+  map_set(m, "struct", TOKEN_STRUCT);
+  map_set(m, "true", TOKEN_TRUE);
+  map_set(m, "false", TOKEN_FALSE);
+  map_set(m, "null", TOKEN_NULL);
+  map_set(m, "and", TOKEN_AND);
+  map_set(m, "or", TOKEN_OR);
+  map_set(m, "not", TOKEN_NOT);
+  map_set(m, "import", TOKEN_IMPORT);
+  map_set(m, "break", TOKEN_BREAK);
+  map_set(m, "alloc", TOKEN_ALLOC);
+  map_set(m, "free", TOKEN_FREE);
+  map_set(m, "cast", TOKEN_CAST);
+  map_set(m, "Result", TOKEN_RESULT);
+  map_set(m, "Ok", TOKEN_OK);
+  map_set(m, "Err", TOKEN_ERR);
+  map_set(m, "clone", TOKEN_CLONE);
+  map_set(m, "move", TOKEN_MOVE);
+  map_set(m, "map", TOKEN_MAP);
+  map_set(m, "void", TOKEN_VOID);
+  map_set(m, "bool", TOKEN_BOOL_TYPE);
+  map_set(m, "byte", TOKEN_BYTE);
+  map_set(m, "str", TOKEN_STR);
+  map_set(m, "i8", TOKEN_I8);
+  map_set(m, "i16", TOKEN_I16);
+  map_set(m, "i32", TOKEN_I32);
+  map_set(m, "i64", TOKEN_I64);
+  map_set(m, "f32", TOKEN_F32);
+  map_set(m, "f64", TOKEN_F64);
+  map_set(m, "ptr", TOKEN_PTR);
+  return m;
+}
+
+const KEYWORDS: map<str> = init_keywords();

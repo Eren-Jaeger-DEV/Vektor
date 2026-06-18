@@ -1,0 +1,14 @@
+function main() { 
+      let a: i32 = 10;
+      if a > 5 {
+        print("yes");
+      } else {
+        print("no");
+      }
+      
+      if a < 5 {
+        print("yes");
+      } else {
+        print("no");
+      }
+     }

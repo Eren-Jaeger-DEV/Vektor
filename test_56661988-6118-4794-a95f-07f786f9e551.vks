@@ -1,0 +1,6 @@
+function main() { 
+      let ok: bool = write_file("F:\\projects\\P\\_stdlib_test_tmp.txt", "hello vks");
+      print(ok);
+      let content: str = read_file("F:\\projects\\P\\_stdlib_test_tmp.txt");
+      print(content);
+     }

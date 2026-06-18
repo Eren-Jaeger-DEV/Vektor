@@ -1,0 +1,23 @@
+╔══════════════════════════════════════════════════════════════╗
+║  Viktor Script Bytecode Disassembly                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+── Function: main(0 params) ─────────────────────────────────
+
+  0000     1  LOAD_GLOBAL          0  ; "print"
+  0003     |  CONST                1  ; 10 (i32)
+  0006     |  CONST                2  ; 20 (i32)
+  0009     |  ADD             
+  0010     |  CALL                 1  ; 1 arg(s)
+  0012     |  POP             
+  0013     |  NULL            
+  0014     |  RETURN          
+
+── Function: <script> (entry point) ─────────────────────────
+
+  0000     1  CONST                0  ; <fn #0>
+  0003     |  STORE_GLOBAL         1  ; "main"
+  0006     0  LOAD_GLOBAL          2  ; "main"
+  0009     |  CALL                 0  ; 0 arg(s)
+  0011     |  POP             
+  0012     |  HALT            

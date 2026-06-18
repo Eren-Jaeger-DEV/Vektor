@@ -1,0 +1,242 @@
+import "tokens.vks";
+
+struct Lexer {
+  source: str;
+  pos: i32;
+  line: i32;
+  column: i32;
+  head: Token;
+  tail: Token;
+}
+
+function lexer_new(source: str) -> Lexer {
+  return Lexer {
+    source: source,
+    pos: 0,
+    line: 1,
+    column: 1,
+    head: null,
+    tail: null
+  };
+}
+
+function is_at_end(l: Lexer) -> bool {
+  return l.pos >= l.source.len;
+}
+
+function peek(l: Lexer) -> str {
+  if (is_at_end(l)) {
+    return "\0";
+  }
+  return charAt(l.source, l.pos);
+}
+
+function peek_next(l: Lexer) -> str {
+  if (l.pos + 1 >= l.source.len) {
+    return "\0";
+  }
+  return charAt(l.source, l.pos + 1);
+}
+
+function advance(l: Lexer) -> str {
+  let char_val: str = substring(l.source, l.pos, l.pos + 1);
+  l.pos = l.pos + 1;
+  if (char_val == "\n") {
+    l.line = l.line + 1;
+    l.column = 1;
+  } else {
+    l.column = l.column + 1;
+  }
+  return char_val;
+}
+
+function match_char(l: Lexer, expected: str) -> bool {
+  if (is_at_end(l)) {
+    return false;
+  }
+  if (peek(l) != expected) {
+    return false;
+  }
+  advance(l);
+  return true;
+}
+
+function add_token(l: Lexer, type: str, lexeme: str, num_val: f64) {
+  let tok: Token = Token {
+    type: type,
+    lexeme: lexeme,
+    line: l.line,
+    column: l.column,
+    num_val: num_val,
+    next: null
+  };
+
+  if (l.head == null) {
+    l.head = tok;
+    l.tail = tok;
+  } else {
+    l.tail.next = tok;
+    l.tail = tok;
+  }
+}
+
+function is_digit(c: str) -> bool {
+  return c >= "0" and c <= "9";
+}
+
+function is_alpha(c: str) -> bool {
+  return (c >= "a" and c <= "z") or (c >= "A" and c <= "Z") or c == "_";
+}
+
+function is_alphanumeric(c: str) -> bool {
+  return is_alpha(c) or is_digit(c);
+}
+
+function skip_whitespace(l: Lexer) {
+  while (true) {
+    let c: str = peek(l);
+    if (c == " " or c == "\r" or c == "\t" or c == "\n") {
+      advance(l);
+    } else if (c == "/") {
+      if (peek_next(l) == "/") {
+        while (peek(l) != "\n" and not is_at_end(l)) {
+          advance(l);
+        }
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+  }
+}
+
+function tokenize(source: str) -> Token {
+  let l: Lexer = lexer_new(source);
+  let parsing: bool = true;
+  while (parsing and not is_at_end(l)) {
+    skip_whitespace(l);
+    if (is_at_end(l)) {
+      parsing = false;
+    } else {
+
+    let c: str = advance(l);
+    print("pos:", l.pos, "char:", c);
+
+    if (c == "(") { add_token(l, TOKEN_LPAREN, c, 0.0); }
+    else if (c == ")") { add_token(l, TOKEN_RPAREN, c, 0.0); }
+    else if (c == "{") { add_token(l, TOKEN_LBRACE, c, 0.0); }
+    else if (c == "}") { add_token(l, TOKEN_RBRACE, c, 0.0); }
+    else if (c == "[") { add_token(l, TOKEN_LBRACKET, c, 0.0); }
+    else if (c == "]") { add_token(l, TOKEN_RBRACKET, c, 0.0); }
+    else if (c == ";") { add_token(l, TOKEN_SEMICOLON, c, 0.0); }
+    else if (c == ":") {
+      if (match_char(l, ":")) { add_token(l, TOKEN_DOUBLE_DOT, "::", 0.0); }
+      else { add_token(l, TOKEN_COLON, c, 0.0); }
+    }
+    else if (c == ",") { add_token(l, TOKEN_COMMA, c, 0.0); }
+    else if (c == ".") { add_token(l, TOKEN_DOT, c, 0.0); }
+    else if (c == "?") { add_token(l, TOKEN_QUESTION, c, 0.0); }
+    else if (c == "-") {
+      if (match_char(l, "-")) { add_token(l, TOKEN_MINUS_MINUS, "--", 0.0); }
+      else if (match_char(l, ">")) { add_token(l, TOKEN_ARROW, "->", 0.0); }
+      else { add_token(l, TOKEN_MINUS, c, 0.0); }
+    }
+    else if (c == "+") {
+      if (match_char(l, "+")) { add_token(l, TOKEN_PLUS_PLUS, "++", 0.0); }
+      else { add_token(l, TOKEN_PLUS, c, 0.0); }
+    }
+    else if (c == "*") { add_token(l, TOKEN_STAR, c, 0.0); }
+    else if (c == "/") { add_token(l, TOKEN_SLASH, c, 0.0); }
+    else if (c == "%") { add_token(l, TOKEN_PERCENT, c, 0.0); }
+    else if (c == "!") {
+      if (match_char(l, "=")) { add_token(l, TOKEN_NOT_EQUALS, "!=", 0.0); }
+      else { add_token(l, TOKEN_BANG, c, 0.0); }
+    }
+    else if (c == "=") {
+      if (match_char(l, "=")) { add_token(l, TOKEN_DOUBLE_EQUALS, "==", 0.0); }
+      else { add_token(l, TOKEN_EQUALS, c, 0.0); }
+    }
+    else if (c == "<") {
+      if (match_char(l, "=")) { add_token(l, TOKEN_LESS_EQUALS, "<=", 0.0); }
+      else { add_token(l, TOKEN_LESS, c, 0.0); }
+    }
+    else if (c == ">") {
+      if (match_char(l, "=")) { add_token(l, TOKEN_GREATER_EQUALS, ">=", 0.0); }
+      else { add_token(l, TOKEN_GREATER, c, 0.0); }
+    }
+    else if (c == "&") {
+      if (match_char(l, "&")) { add_token(l, TOKEN_AND_AND, "&&", 0.0); }
+      else { add_token(l, TOKEN_AMPERSAND, c, 0.0); }
+    }
+    else if (c == "|") {
+      if (match_char(l, "|")) { add_token(l, TOKEN_OR_OR, "||", 0.0); }
+      else { add_token(l, TOKEN_PIPE, c, 0.0); }
+    }
+    else if (c == "\"") {
+      let str_val: str = "";
+      while (peek(l) != "\"" and not is_at_end(l)) {
+        if (peek(l) == "\\") {
+          advance(l); // consume slash
+          let escaped: str = advance(l);
+          if (escaped == "n") { str_val = str_val + "\n"; }
+          else if (escaped == "t") { str_val = str_val + "\t"; }
+          else if (escaped == "r") { str_val = str_val + "\r"; }
+          else if (escaped == "0") { str_val = str_val + "\0"; }
+          else if (escaped == "\\") { str_val = str_val + "\\"; }
+          else if (escaped == "\"") { str_val = str_val + "\""; }
+          else { str_val = str_val + escaped; }
+        } else {
+          str_val = str_val + advance(l);
+        }
+      }
+      if (is_at_end(l)) {
+        print("Unterminated string");
+      } else {
+        advance(l); // consume closing quote
+        add_token(l, TOKEN_STRING_LITERAL, str_val, 0.0);
+      }
+    }
+    else if (c == "'") {
+      let char_val: str = advance(l);
+      if (advance(l) != "'") {
+        print("Unterminated char literal");
+      } else {
+        add_token(l, TOKEN_CHAR_LITERAL, char_val, 0.0);
+      }
+    }
+    else {
+      if (is_digit(c)) {
+        let num_str: str = c;
+        while (is_digit(peek(l))) {
+          num_str = num_str + advance(l);
+        }
+        if (peek(l) == "." and is_digit(peek_next(l))) {
+          num_str = num_str + advance(l);
+          while (is_digit(peek(l))) {
+            num_str = num_str + advance(l);
+          }
+          add_token(l, TOKEN_FLOAT_LITERAL, num_str, 0.0);
+        } else {
+          add_token(l, TOKEN_INTEGER_LITERAL, num_str, 0.0);
+        }
+      } else if (is_alpha(c)) {
+        let ident: str = c;
+        while (is_alphanumeric(peek(l))) {
+          ident = ident + advance(l);
+        }
+        let type_val: str = TOKEN_IDENTIFIER;
+        if (map_has(KEYWORDS, ident)) {
+           type_val = map_get(KEYWORDS, ident);
+        }
+        add_token(l, type_val, ident, 0.0);
+      } else {
+        add_token(l, TOKEN_UNKNOWN, c, 0.0);
+      }
+    }
+    }
+  }
+
+  add_token(l, TOKEN_EOF, "", 0.0);
+  return l.head;
+}

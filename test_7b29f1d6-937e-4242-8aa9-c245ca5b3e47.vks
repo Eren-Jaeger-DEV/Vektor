@@ -1,0 +1,11 @@
+
+      import "stdlib/string.vks";
+
+      function main() {
+        let s: str = "Viktor";
+        print(len(s));
+        print(isEmpty(""));
+        print(startsWith(s, "Vik"));
+        print(startsWith(s, "X"));
+      }
+    

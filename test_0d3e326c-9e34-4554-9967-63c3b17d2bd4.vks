@@ -1,0 +1,6 @@
+function main() { 
+      let t: f64 = time();
+      if t > 0.0 {
+        print("Time works");
+      }
+     }

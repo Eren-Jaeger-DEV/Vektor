@@ -1,0 +1,694 @@
+import "opcodes.vks";
+import "ast.vks";
+
+// ── Structs for Bytecode ───────────────────────────────────
+
+struct Bytecode {
+  val: i32;
+  line: i32;
+  next: Bytecode;
+}
+
+struct Constant {
+  type: i32;
+  int_val: i32;
+  float_val: f64;
+  str_val: str;
+  fn_index: i32;
+  next: Constant;
+}
+
+struct Chunk {
+  name: str;
+  code_head: Bytecode;
+  code_tail: Bytecode;
+  code_count: i32;
+
+  constants_head: Constant;
+  constants_tail: Constant;
+  constants_count: i32;
+}
+
+function chunk_new(name: str) -> Chunk {
+  return Chunk {
+    name: name,
+    code_head: null,
+    code_tail: null,
+    code_count: 0,
+    constants_head: null,
+    constants_tail: null,
+    constants_count: 0
+  };
+}
+
+function chunk_add_constant(chunk: Chunk, c: Constant) -> i32 {
+  if (chunk.constants_head == null) {
+    chunk.constants_head = c;
+    chunk.constants_tail = c;
+  } else {
+    chunk.constants_tail.next = c;
+    chunk.constants_tail = c;
+  }
+  let idx: i32 = chunk.constants_count;
+  chunk.constants_count = chunk.constants_count + 1;
+  return idx;
+}
+
+struct Local {
+  name: str;
+  depth: i32;
+  is_const: bool;
+  next: Local;
+}
+
+struct CompiledFunction {
+  name: str;
+  arity: i32;
+  chunk: Chunk;
+  next: CompiledFunction;
+}
+
+struct CompiledProgram {
+  functions_head: CompiledFunction;
+  structs: str; // not porting structs list yet
+  entry_point: str;
+}
+
+struct Compiler {
+  chunk: Chunk;
+  locals_head: Local;
+  locals_count: i32;
+  scope_depth: i32;
+
+  functions_head: CompiledFunction;
+  functions_tail: CompiledFunction;
+  functions_count: i32;
+  
+  break_jumps: map<i32>; // hack: storing jump lists. but let's ignore break for v1 if it's too hard
+}
+
+function compiler_new() -> Compiler {
+  return Compiler {
+    chunk: chunk_new("<script>"),
+    locals_head: null,
+    locals_count: 0,
+    scope_depth: 0,
+    functions_head: null,
+    functions_tail: null,
+    functions_count: 0,
+    break_jumps: map_create()
+  };
+}
+
+// ── Emitting Bytecode ──────────────────────────────────────
+
+function emit_byte(c: Compiler, b_val: i32, line: i32) -> i32 {
+  let b: Bytecode = Bytecode { val: b_val, line: line, next: null };
+  if (c.chunk.code_head == null) {
+    c.chunk.code_head = b;
+    c.chunk.code_tail = b;
+  } else {
+    c.chunk.code_tail.next = b;
+    c.chunk.code_tail = b;
+  }
+  let offset: i32 = c.chunk.code_count;
+  c.chunk.code_count = c.chunk.code_count + 1;
+  return offset;
+}
+
+function emit_op(c: Compiler, op: i32, line: i32) {
+  emit_byte(c, op, line);
+}
+
+function emit_u16(c: Compiler, value: i32, line: i32) {
+  emit_byte(c, (value / 256), line); // high byte
+  emit_byte(c, (value % 256), line); // low byte
+}
+
+function emit_jump(c: Compiler, instruction: i32, line: i32) -> i32 {
+  emit_op(c, instruction, line);
+  emit_byte(c, 0, line); // placeholder high
+  emit_byte(c, 0, line); // placeholder low
+  return c.chunk.code_count - 2;
+}
+
+function patch_jump(c: Compiler, offset: i32) {
+  let jump: i32 = c.chunk.code_count - offset - 2;
+  if (jump > 65535) {
+    print("Too much code to jump over.");
+    exit(1);
+  }
+
+  // Find the bytecode at `offset`
+  let curr: Bytecode = c.chunk.code_head;
+  let i: i32 = 0;
+  let loop: bool = true;
+  while (loop and curr != null) {
+    if (i == offset) {
+      curr.val = (jump / 256);
+      curr.next.val = (jump % 256);
+      loop = false;
+    }
+    curr = curr.next;
+    i = i + 1;
+  }
+}
+
+function emit_loop(c: Compiler, loop_start: i32, line: i32) {
+  emit_op(c, OP_LOOP, line);
+  let jump: i32 = c.chunk.code_count - loop_start + 2;
+  if (jump > 65535) {
+    print("Loop body too large.");
+    exit(1);
+  }
+  emit_u16(c, jump, line);
+}
+
+// ── Scoping & Locals ───────────────────────────────────────
+
+function begin_scope(c: Compiler) {
+  c.scope_depth = c.scope_depth + 1;
+}
+
+function end_scope(c: Compiler, line: i32) {
+  c.scope_depth = c.scope_depth - 1;
+  
+  // Pop locals
+  let parsing: bool = true;
+  while (parsing and c.locals_head != null and c.locals_head.depth > c.scope_depth) {
+    emit_op(c, OP_POP, line);
+    c.locals_head = c.locals_head.next;
+    c.locals_count = c.locals_count - 1;
+  }
+}
+
+function compiler_add_local(c: Compiler, name: str, is_const: bool) {
+  if (c.locals_count == 256) {
+    print("Too many local variables in function.");
+    exit(1);
+  }
+  let l: Local = Local { name: name, depth: c.scope_depth, is_const: is_const, next: c.locals_head };
+  c.locals_head = l;
+  c.locals_count = c.locals_count + 1;
+}
+
+function compiler_resolve_local(c: Compiler, name: str) -> i32 {
+  let curr: Local = c.locals_head;
+  let idx: i32 = c.locals_count - 1;
+  let loop: bool = true;
+  while (loop and curr != null) {
+    if (curr.name == name) {
+      return idx;
+    }
+    curr = curr.next;
+    idx = idx - 1;
+  }
+  return -1;
+}
+
+// ── Compiler Core ──────────────────────────────────────────
+
+function compile_expression(c: Compiler, node: ASTNode) {
+  if (node == null) { return; }
+  let kind: str = node.kind;
+
+  if (kind == "IntegerLiteral") {
+    let const_val: Constant = Constant { type: CONST_TYPE_INT, int_val: node.int_val, float_val: 0.0, str_val: "", fn_index: 0, next: null };
+    let idx: i32 = chunk_add_constant(c.chunk, const_val);
+    emit_op(c, OP_CONST, node.line);
+    emit_u16(c, idx, node.line);
+  } else if (kind == "FloatLiteral") {
+    let const_val: Constant = Constant { type: CONST_TYPE_FLOAT, int_val: 0, float_val: node.float_val, str_val: "", fn_index: 0, next: null };
+    let idx: i32 = chunk_add_constant(c.chunk, const_val);
+    emit_op(c, OP_CONST, node.line);
+    emit_u16(c, idx, node.line);
+  } else if (kind == "StringLiteral") {
+    let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.str_val, fn_index: 0, next: null };
+    let idx: i32 = chunk_add_constant(c.chunk, const_val);
+    emit_op(c, OP_CONST, node.line);
+    emit_u16(c, idx, node.line);
+  } else if (kind == "BooleanLiteral") {
+    if (node.bool_val) { emit_op(c, OP_TRUE, node.line); } 
+    else { emit_op(c, OP_FALSE, node.line); }
+  } else if (kind == "NullLiteral") {
+    emit_op(c, OP_NULL, node.line);
+  } else if (kind == "BinaryExpr") {
+    if (node.op == "and" or node.op == "&&") {
+      compile_expression(c, node.left);
+      let end_jump: i32 = emit_jump(c, OP_JUMP_IF_FALSE, node.line);
+      compile_expression(c, node.right);
+      let done_jump: i32 = emit_jump(c, OP_JUMP, node.line);
+      patch_jump(c, end_jump);
+      emit_op(c, OP_FALSE, node.line);
+      patch_jump(c, done_jump);
+    } else if (node.op == "or" or node.op == "||") {
+      compile_expression(c, node.left);
+      let end_jump: i32 = emit_jump(c, OP_JUMP_IF_TRUE, node.line);
+      compile_expression(c, node.right);
+      let done_jump: i32 = emit_jump(c, OP_JUMP, node.line);
+      patch_jump(c, end_jump);
+      emit_op(c, OP_TRUE, node.line);
+      patch_jump(c, done_jump);
+    } else {
+      compile_expression(c, node.left);
+      compile_expression(c, node.right);
+      if (node.op == "+") { emit_op(c, OP_ADD, node.line); }
+      else if (node.op == "-") { emit_op(c, OP_SUB, node.line); }
+      else if (node.op == "*") { emit_op(c, OP_MUL, node.line); }
+      else if (node.op == "/") { emit_op(c, OP_DIV, node.line); }
+      else if (node.op == "%") { emit_op(c, OP_MOD, node.line); }
+      else if (node.op == "==") { emit_op(c, OP_EQ, node.line); }
+      else if (node.op == "!=") { emit_op(c, OP_NEQ, node.line); }
+      else if (node.op == "<") { emit_op(c, OP_LT, node.line); }
+      else if (node.op == ">") { emit_op(c, OP_GT, node.line); }
+      else if (node.op == "<=") { emit_op(c, OP_LTE, node.line); }
+      else if (node.op == ">=") { emit_op(c, OP_GTE, node.line); }
+    }
+  } else if (node.kind == "LetStatement" or node.kind == "ConstStatement") {
+    compile_expression(c, node.initializer); // Value
+    
+    if (c.scope_depth > 0) {
+      compiler_add_local(c, node.name, true); 
+    } else {
+      // Global
+      let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.name, fn_index: 0, next: null };
+      let idx: i32 = chunk_add_constant(c.chunk, const_val);
+      emit_op(c, OP_STORE_GLOBAL, node.line);
+      emit_u16(c, idx, node.line);
+    }
+  } else if (kind == "AssignmentExpr") {
+    if (node.left.kind == "Identifier") {
+      compile_expression(c, node.right);
+      let slot: i32 = compiler_resolve_local(c, node.left.name);
+      if (slot != -1) {
+        emit_op(c, OP_STORE_LOCAL, node.line);
+        emit_u16(c, slot, node.line);
+      } else {
+        let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.name, fn_index: 0, next: null };
+        let idx: i32 = chunk_add_constant(c.chunk, const_val);
+        emit_op(c, OP_STORE_GLOBAL, node.line);
+        emit_u16(c, idx, node.line);
+      }
+    } else if (node.left.kind == "FieldAccessExpr") {
+      compile_expression(c, node.left.object);
+      compile_expression(c, node.right);
+      let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.property, fn_index: 0, next: null };
+      let idx: i32 = chunk_add_constant(c.chunk, const_val);
+      emit_op(c, OP_SET_FIELD, node.line);
+      emit_u16(c, idx, node.line);
+    } else if (node.left.kind == "IndexAccessExpr") {
+      compile_expression(c, node.left.object);
+      compile_expression(c, node.left.index);
+      compile_expression(c, node.right);
+      emit_op(c, OP_SET_INDEX, node.line);
+    } else if (node.left.kind == "DerefExpr") {
+      compile_expression(c, node.left.right); // pointer
+      compile_expression(c, node.right); // value
+      emit_op(c, OP_DEREF_SET, node.line);
+    } else {
+      print("Invalid assignment target");
+      exit(1);
+    }
+  } else if (kind == "Identifier") {
+    let slot: i32 = compiler_resolve_local(c, node.name);
+    if (slot != -1) {
+      emit_op(c, OP_LOAD_LOCAL, node.line);
+      emit_byte(c, (slot / 256), node.line);
+      emit_byte(c, (slot % 256), node.line);
+    } else {
+      let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.name, fn_index: 0, next: null };
+      let idx: i32 = chunk_add_constant(c.chunk, const_val);
+      emit_op(c, OP_LOAD_GLOBAL, node.line);
+      emit_u16(c, idx, node.line);
+    }
+  } else if (kind == "StructLiteral") {
+    // 1. Compile field values in order
+    let field_count: i32 = 0;
+    let curr_field: ASTNode = node.fields;
+    while (curr_field != null) {
+      compile_expression(c, curr_field.right);
+      field_count = field_count + 1;
+      curr_field = curr_field.next;
+    }
+    
+    // 2. Emit NEW_STRUCT with struct name and field count
+    let struct_name: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.name, fn_index: 0, next: null };
+    let name_idx: i32 = chunk_add_constant(c.chunk, struct_name);
+    emit_op(c, OP_NEW_STRUCT, node.line);
+    emit_u16(c, name_idx, node.line);
+    emit_byte(c, field_count, node.line);
+    
+    // 3. Emit field name indices so VM knows which field is which
+    let curr_field2: ASTNode = node.fields;
+    while (curr_field2 != null) {
+      let field_name_const: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: curr_field2.name, fn_index: 0, next: null };
+      let field_name_idx: i32 = chunk_add_constant(c.chunk, field_name_const);
+      emit_u16(c, field_name_idx, node.line);
+      curr_field2 = curr_field2.next;
+    }
+  } else if (kind == "FieldAccessExpr") {
+    compile_expression(c, node.object);
+    let field_name: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.property, fn_index: 0, next: null };
+    let name_idx: i32 = chunk_add_constant(c.chunk, field_name);
+    emit_op(c, OP_GET_FIELD, node.line);
+    emit_u16(c, name_idx, node.line);
+  } else if (kind == "CallExpr") {
+    compile_expression(c, node.callee);
+    let arg_count: i32 = 0;
+    let curr_arg: ASTNode = node.args;
+    while (curr_arg != null) {
+      compile_expression(c, curr_arg);
+      arg_count = arg_count + 1;
+      curr_arg = curr_arg.next;
+    }
+    emit_op(c, OP_CALL, node.line);
+    emit_byte(c, arg_count, node.line);
+  } else if (kind == "ArrayLiteral") {
+    let elem_count: i32 = 0;
+    let curr_elem: ASTNode = node.args; // Using args for elements
+    while (curr_elem != null) {
+      compile_expression(c, curr_elem);
+      elem_count = elem_count + 1;
+      curr_elem = curr_elem.next;
+    }
+    emit_op(c, OP_NEW_ARRAY, node.line);
+    emit_u16(c, elem_count, node.line);
+  } else if (kind == "IndexAccessExpr") {
+    compile_expression(c, node.object);
+    compile_expression(c, node.index);
+    emit_op(c, OP_GET_INDEX, node.line);
+  } else if (kind == "AssignmentExpr") {
+    if (node.left.kind == "Identifier") {
+      compile_expression(c, node.right);
+      let slot: i32 = compiler_resolve_local(c, node.left.name);
+      if (slot != -1) {
+        emit_op(c, OP_DUP, node.line);
+        emit_op(c, OP_STORE_LOCAL, node.line);
+        emit_byte(c, (slot / 256), node.line);
+        emit_byte(c, (slot % 256), node.line);
+      } else {
+        let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.name, fn_index: 0, next: null };
+        let idx: i32 = chunk_add_constant(c.chunk, const_val);
+        emit_op(c, OP_DUP, node.line);
+        emit_op(c, OP_STORE_GLOBAL, node.line);
+        emit_u16(c, idx, node.line);
+      }
+    } else if (node.left.kind == "IndexAccessExpr") {
+      compile_expression(c, node.left.object);
+      compile_expression(c, node.left.index);
+      compile_expression(c, node.right);
+      // Wait, TS compiler logic:
+      // SET_INDEX takes array, index, value. It pops value, pops index, pops array, pushes value.
+      // So order is Object, Index, Value. That is what we did!
+      emit_op(c, OP_SET_INDEX, node.line);
+    } else if (node.left.kind == "FieldAccessExpr") {
+      compile_expression(c, node.left.object);
+      compile_expression(c, node.right);
+      let field_name: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.property, fn_index: 0, next: null };
+      let name_idx: i32 = chunk_add_constant(c.chunk, field_name);
+      emit_op(c, OP_SET_FIELD, node.line);
+      emit_u16(c, name_idx, node.line);
+    } else {
+      print("Compiler error: Invalid assignment target");
+    }
+  } else if (kind == "AllocExpr") {
+    compile_expression(c, node.left); // Using left for value
+    emit_op(c, OP_ALLOC, node.line);
+  } else if (kind == "CloneExpr") {
+    compile_expression(c, node.left); // Using left for value
+    emit_op(c, OP_CLONE, node.line);
+  } else if (kind == "CastExpr") {
+    compile_expression(c, node.left); // Using left for value
+    emit_op(c, OP_CAST, node.line);
+    emit_byte(c, node.int_val, node.line); // Assuming int_val holds typeId
+  } else if (kind == "UnaryExpr") {
+    compile_expression(c, node.right);
+    if (node.op == "-") { emit_op(c, OP_NEG, node.line); }
+    else if (node.op == "!" or node.op == "not") { emit_op(c, OP_NOT, node.line); }
+  } else {
+    print("Unknown AST node kind in compile_expression:", kind);
+    exit(1);
+  }
+}
+
+function compile_statement(c: Compiler, stmt: ASTNode) {
+  if (stmt == null) { return; }
+  let kind: str = stmt.kind;
+
+  if (kind == "LetStatement" or kind == "ConstStatement") {
+    if (stmt.initializer != null) {
+      compile_expression(c, stmt.initializer);
+    } else {
+      emit_op(c, OP_NULL, stmt.line);
+    }
+    
+    if (c.scope_depth > 0) {
+      compiler_add_local(c, stmt.name, kind == "ConstStatement");
+    } else {
+      let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: stmt.name, fn_index: 0, next: null };
+      let idx: i32 = chunk_add_constant(c.chunk, const_val);
+      emit_op(c, OP_STORE_GLOBAL, stmt.line);
+      emit_u16(c, idx, stmt.line);
+    }
+  } else if (kind == "ExpressionStatement") {
+    compile_expression(c, stmt.left);
+    emit_op(c, OP_POP, stmt.line);
+  } else if (kind == "ReturnStatement") {
+    if (stmt.left != null) {
+      compile_expression(c, stmt.left);
+    } else {
+      emit_op(c, OP_NULL, stmt.line);
+    }
+    emit_op(c, OP_RETURN, stmt.line);
+  } else if (kind == "IfStatement") {
+    compile_expression(c, stmt.condition);
+    let then_jump: i32 = emit_jump(c, OP_JUMP_IF_FALSE, stmt.line);
+    
+    begin_scope(c);
+    compile_statement(c, stmt.body);
+    end_scope(c, stmt.line);
+    
+    let else_jump: i32 = -1;
+    if (stmt.else_body != null) {
+      else_jump = emit_jump(c, OP_JUMP, stmt.line);
+    }
+    
+    patch_jump(c, then_jump);
+    
+    if (stmt.else_body != null) {
+      begin_scope(c);
+      compile_statement(c, stmt.else_body);
+      end_scope(c, stmt.line);
+      patch_jump(c, else_jump);
+    }
+  } else if (kind == "WhileStatement") {
+    let loop_start: i32 = c.chunk.code_count;
+    compile_expression(c, stmt.condition);
+    
+    let exit_jump: i32 = emit_jump(c, OP_JUMP_IF_FALSE, stmt.line);
+    
+    begin_scope(c);
+    compile_statement(c, stmt.body);
+    end_scope(c, stmt.line);
+    
+    emit_loop(c, loop_start, stmt.line);
+    
+    patch_jump(c, exit_jump);
+  } else if (kind == "ForStatement") {
+    begin_scope(c);
+    
+    if (stmt.initializer != null) {
+      compile_statement(c, stmt.initializer);
+    }
+    
+    let loop_start: i32 = c.chunk.code_count;
+    
+    let exit_jump: i32 = -1;
+    if (stmt.condition != null) {
+      compile_expression(c, stmt.condition);
+      exit_jump = emit_jump(c, OP_JUMP_IF_FALSE, stmt.line);
+    }
+    
+    begin_scope(c);
+    // Wait, body is a block, but in VKS compile_statement on Block handles scope?
+    // Let's just compile the body
+    compile_statement(c, stmt.body);
+    end_scope(c, stmt.line);
+    
+    if (stmt.increment != null) {
+      compile_expression(c, stmt.increment);
+      emit_op(c, OP_POP, stmt.line);
+    }
+    
+    emit_loop(c, loop_start, stmt.line);
+    
+    if (exit_jump != -1) {
+      patch_jump(c, exit_jump);
+    }
+    
+    end_scope(c, stmt.line);
+  } else if (kind == "ForInStatement") {
+    begin_scope(c);
+    
+    compile_expression(c, stmt.right); // end limit
+    compiler_add_local(c, "$end", true);
+    
+    compile_expression(c, stmt.left); // start limit
+    compiler_add_local(c, stmt.name, false);
+    
+    let loop_start: i32 = c.chunk.code_count;
+    
+    let var_slot: i32 = compiler_resolve_local(c, stmt.name);
+    let limit_slot: i32 = compiler_resolve_local(c, "$end");
+    
+    emit_op(c, OP_LOAD_LOCAL, stmt.line);
+    emit_byte(c, (var_slot / 256), stmt.line);
+    emit_byte(c, (var_slot % 256), stmt.line);
+    
+    emit_op(c, OP_LOAD_LOCAL, stmt.line);
+    emit_byte(c, (limit_slot / 256), stmt.line);
+    emit_byte(c, (limit_slot % 256), stmt.line);
+    
+    emit_op(c, OP_LT, stmt.line);
+    let exit_jump: i32 = emit_jump(c, OP_JUMP_IF_FALSE, stmt.line);
+    
+    begin_scope(c);
+    compile_statement(c, stmt.body);
+    end_scope(c, stmt.line);
+    
+    emit_op(c, OP_LOAD_LOCAL, stmt.line);
+    emit_byte(c, (var_slot / 256), stmt.line);
+    emit_byte(c, (var_slot % 256), stmt.line);
+    
+    emit_op(c, OP_CONST, stmt.line);
+    // Since 1 is used, we need to add 1 to constants!
+    let const_val: Constant = Constant { type: CONST_TYPE_INT, int_val: 1, float_val: 0.0, str_val: "", fn_index: 0, next: null };
+    let idx: i32 = chunk_add_constant(c.chunk, const_val);
+    emit_u16(c, idx, stmt.line);
+    
+    emit_op(c, OP_ADD, stmt.line);
+    
+    emit_op(c, OP_STORE_LOCAL, stmt.line);
+    emit_byte(c, (var_slot / 256), stmt.line);
+    emit_byte(c, (var_slot % 256), stmt.line);
+    
+    emit_op(c, OP_POP, stmt.line); // discard assignment result
+    
+    emit_loop(c, loop_start, stmt.line);
+    
+    patch_jump(c, exit_jump);
+    
+    end_scope(c, stmt.line);
+  } else if (kind == "Block") {
+    let curr: ASTNode = stmt.body;
+    while (curr != null) {
+      compile_statement(c, curr);
+      curr = curr.next;
+    }
+  } else {
+    print("Compiler unimplemented statement:");
+    print(kind);
+  }
+}
+
+function compile_function_decl(c: Compiler, node: ASTNode) {
+  let fn_name: str = node.name;
+  
+  // Create chunk for function
+  let old_chunk: Chunk = c.chunk;
+  let old_locals: Local = c.locals_head;
+  let old_locals_count: i32 = c.locals_count;
+  let old_scope_depth: i32 = c.scope_depth;
+  
+  c.chunk = chunk_new(fn_name);
+  c.locals_head = null;
+  c.locals_count = 0;
+  c.scope_depth = 1;
+  
+  // Add params to locals
+  let param: ASTNode = node.params;
+  let arity: i32 = 0;
+  while (param != null) {
+    compiler_add_local(c, param.name, false);
+    arity = arity + 1;
+    param = param.next;
+  }
+  
+  // Body
+  let curr: ASTNode = node.body;
+  while (curr != null) {
+    compile_statement(c, curr);
+    curr = curr.next;
+  }
+  
+  emit_op(c, OP_NULL, node.line);
+  emit_op(c, OP_RETURN, node.line);
+  
+  // Save compiled function
+  let compiled_fn: CompiledFunction = CompiledFunction {
+    name: fn_name,
+    arity: arity,
+    chunk: c.chunk,
+    next: c.functions_head
+  };
+  c.functions_head = compiled_fn;
+  c.functions_count = c.functions_count + 1;
+  
+  // Restore compiler state
+  c.chunk = old_chunk;
+  c.locals_head = old_locals;
+  c.locals_count = old_locals_count;
+  c.scope_depth = old_scope_depth;
+  
+  // Create constant for the function (global)
+  let const_val: Constant = Constant { type: CONST_TYPE_FUNCTION, int_val: 0, float_val: 0.0, str_val: fn_name, fn_index: c.functions_count - 1, next: null };
+  let idx: i32 = chunk_add_constant(c.chunk, const_val);
+  
+  // In Viktor Script, functions are global
+  let name_const: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: fn_name, fn_index: 0, next: null };
+  let name_idx: i32 = chunk_add_constant(c.chunk, name_const);
+  emit_op(c, OP_CONST, node.line);
+  emit_u16(c, idx, node.line);
+  emit_op(c, OP_STORE_GLOBAL, node.line);
+  emit_u16(c, name_idx, node.line);
+}
+
+function compile(node: ASTNode) -> Compiler {
+  let c: Compiler = compiler_new();
+  
+  if (node.kind == "Program") {
+    // Top level declarations
+    let curr: ASTNode = node.right; // In VKS parser, declarations are stored in `right` of Program node?
+    // Wait, let's just loop over whatever it is.
+    if (curr == null) {
+      curr = node.body; // In my test integration I passed body
+    }
+    while (curr != null) {
+      if (curr.kind == "FunctionDecl") {
+        compile_function_decl(c, curr);
+      } else if (curr.kind == "StructDecl") {
+        // skip for now
+      } else {
+        compile_statement(c, curr);
+      }
+      curr = curr.next;
+    }
+    
+    // main call
+    let main_const: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: "main", fn_index: 0, next: null };
+    let main_idx: i32 = chunk_add_constant(c.chunk, main_const);
+    emit_op(c, OP_LOAD_GLOBAL, 0);
+    emit_u16(c, main_idx, 0);
+    emit_op(c, OP_CALL, 0);
+    emit_byte(c, 0, 0); // 0 args
+    emit_op(c, OP_POP, 0);
+    emit_op(c, OP_HALT, 0);
+  } else {
+    compile_statement(c, node);
+    emit_op(c, OP_HALT, 0);
+  }
+  
+  return c;
+}
+
+

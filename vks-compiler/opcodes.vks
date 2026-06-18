@@ -1,0 +1,71 @@
+// ============================================================
+// Viktor Script — Opcodes
+// ============================================================
+
+const OP_CONST: i32       = 1;
+const OP_NULL: i32        = 2;
+const OP_TRUE: i32        = 3;
+const OP_FALSE: i32       = 4;
+
+const OP_ADD: i32         = 16;
+const OP_SUB: i32         = 17;
+const OP_MUL: i32         = 18;
+const OP_DIV: i32         = 19;
+const OP_MOD: i32         = 20;
+const OP_NEG: i32         = 21;
+
+const OP_EQ: i32          = 32;
+const OP_NEQ: i32         = 33;
+const OP_LT: i32          = 34;
+const OP_GT: i32          = 35;
+const OP_LTE: i32         = 36;
+const OP_GTE: i32         = 37;
+const OP_NOT: i32         = 38;
+
+const OP_LOAD_LOCAL: i32  = 48;
+const OP_STORE_LOCAL: i32 = 49;
+const OP_LOAD_GLOBAL: i32 = 50;
+const OP_STORE_GLOBAL: i32 = 51;
+
+const OP_JUMP: i32        = 64;
+const OP_JUMP_IF_FALSE: i32 = 65;
+const OP_JUMP_IF_TRUE: i32 = 66;
+const OP_LOOP: i32        = 67;
+
+const OP_CALL: i32        = 80;
+const OP_RETURN: i32      = 81;
+
+const OP_NEW_STRUCT: i32  = 96;
+const OP_GET_FIELD: i32   = 97;
+const OP_SET_FIELD: i32   = 98;
+
+const OP_NEW_ARRAY: i32   = 112;
+const OP_GET_INDEX: i32   = 113;
+const OP_SET_INDEX: i32   = 114;
+
+const OP_ALLOC: i32       = 128;
+const OP_FREE: i32        = 129;
+const OP_ADDR_OF: i32     = 130;
+const OP_DEREF: i32       = 131;
+const OP_DEREF_SET: i32   = 132;
+
+const OP_MAKE_OK: i32     = 144;
+const OP_MAKE_ERR: i32    = 145;
+const OP_CAST: i32        = 146;
+const OP_CLONE: i32       = 147;
+const OP_PRINT: i32       = 148;
+
+const OP_POP: i32         = 160;
+const OP_DUP: i32         = 161;
+
+const OP_INC: i32         = 176;
+const OP_DEC: i32         = 177;
+
+const OP_HALT: i32        = 255;
+
+// ── Constant Types ──────────────────────────────────────────
+const CONST_TYPE_INT: i32 = 0;
+const CONST_TYPE_FLOAT: i32 = 1;
+const CONST_TYPE_STRING: i32 = 2;
+const CONST_TYPE_BYTE: i32 = 3;
+const CONST_TYPE_FUNCTION: i32 = 4;
