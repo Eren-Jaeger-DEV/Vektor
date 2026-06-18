@@ -1,5 +1,0 @@
-function main() { 
-      let s: str = "012345";
-      print(substring(s, 1, 4));
-      print(parseI32("42") + 8);
-     }

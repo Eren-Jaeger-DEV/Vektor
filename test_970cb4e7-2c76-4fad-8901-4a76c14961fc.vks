@@ -1,6 +1,0 @@
-function main() { 
-      let a: f64 = abs(-5.5);
-      let b: f64 = floor(5.9);
-      let c: f64 = ceil(5.1);
-      print(a, b, c);
-     }

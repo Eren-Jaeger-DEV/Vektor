@@ -1,9 +1,0 @@
-function main() { 
-      let a: i32 = 10;
-      let p: ptr<i32> = &a;
-      print(*p);
-      
-      let heapPtr: ptr<i32> = alloc(4);
-      print(heapPtr != null);
-      free(heapPtr);
-     }

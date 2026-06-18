@@ -1,9 +1,0 @@
-
-      struct Point { x: i32; y: i32; }
-      function main() {
-        let p: Point = Point { x: 10, y: 20 };
-        print(p.x);
-        p.y = 30;
-        print(p.y);
-      }
-    

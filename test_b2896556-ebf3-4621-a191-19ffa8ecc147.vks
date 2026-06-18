@@ -1,4 +1,0 @@
-function main() { 
-      print("Hello, " + "World");
-      print("Value: " + 42);
-     }
