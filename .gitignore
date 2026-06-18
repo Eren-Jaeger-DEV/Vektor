@@ -3,3 +3,5 @@ dist/
 *.zip
 trace*.txt
 new_dis.txt
+test_*-*-*-*-*.vks
+test_*-*-*-*-*.vkb
