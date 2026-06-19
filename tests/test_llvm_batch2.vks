@@ -1,0 +1,21 @@
+function test_for() -> i32 {
+    let sum: i32 = 0;
+    for (let i: i32 = 0; i < 5; i++) {
+        sum = sum + i;
+    }
+    return sum;
+}
+
+function test_ptr() -> i32 {
+    let p: ptr<i32> = alloc(4);
+    *p = 42;
+    let val: i32 = *p;
+    free(p);
+    return val;
+}
+
+function main() -> i32 {
+    let x: i32 = test_for();
+    let y: i32 = test_ptr();
+    return x + y;
+}

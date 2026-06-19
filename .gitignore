@@ -1,7 +1,10 @@
 node_modules/
 dist/
 *.zip
-trace*.txt
-new_dis.txt
+*.txt
+*.ll
+*.o
+*.exe
+*.vkb
+!compiler.vkb
 test_*-*-*-*-*.vks
-test_*-*-*-*-*.vkb

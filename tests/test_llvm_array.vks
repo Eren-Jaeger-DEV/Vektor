@@ -1,0 +1,13 @@
+function main() -> i32 {
+    let arr: i32[] = [10, 20, 30];
+    array_push(arr, 40);
+    arr[0] = arr[0] + 5;
+    
+    let sum: i32 = 0;
+    for (let i: i32 = 0; i < 4; i++) {
+        sum = sum + arr[i];
+    }
+    
+    // sum should be 15 + 20 + 30 + 40 = 105
+    return sum;
+}

@@ -1,0 +1,18 @@
+function main() -> i32 {
+    let r1: Result<i32, str> = Ok(42);
+    let r2: Result<i32, str> = Err("fail");
+    
+    let sum: i32 = 0;
+    if (r1.ok) {
+        sum = sum + r1.value;
+    }
+    
+    if (r2.ok) {
+        sum = sum + r2.value;
+    } else {
+        sum = sum + 10;
+    }
+    
+    // should be 52
+    return sum;
+}

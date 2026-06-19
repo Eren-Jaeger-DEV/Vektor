@@ -1,0 +1,10 @@
+struct Person {
+    age: i32;
+    height: i32;
+}
+
+function main() -> i32 {
+    let p: Person = Person { age: 30, height: 180 };
+    p.age = p.age + 1;
+    return p.age + p.height; // Should be 211
+}

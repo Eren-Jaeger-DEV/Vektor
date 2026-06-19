@@ -22,6 +22,7 @@ import { Serializer } from "./serializer.js";
 import { VM, VMPointer } from "./vm.js";
 import { Program, Declaration } from "./ast.js";
 import { Chunk, ConstantType, CompiledProgram } from "./chunk.js";
+import { LLVMEmitter } from "./llvm-emitter.js";
 
 // ── Argument Parsing ─────────────────────────────────────────
 
@@ -41,6 +42,7 @@ if (args.length === 0) {
   console.log("  --run-ast        Run the program using the old AST Interpreter");
   console.log("  --exec           Execute a pre-compiled binary file (.vkb)");
   console.log("  --time           Measure and display execution time");
+  console.log("  --llvm           Compile the program to LLVM IR (.ll)");
   process.exit(0);
 }
 
@@ -51,6 +53,7 @@ const runParser = args.includes("--parse");
 const runInterpreter = args.includes("--run");
 const runAstInterpreter = args.includes("--run-ast");
 const runCompiler = args.includes("--compile");
+const runLLVM = args.includes("--llvm");
 const execBinary = args.includes("--exec");
 const showTime = args.includes("--time");
 
@@ -222,7 +225,7 @@ else {
 
   // ── Run Parser Output ────────────────────────────────────────
 
-  if (runParser || runInterpreter || runAstInterpreter || runCompiler || outputFile) {
+  if (runParser || runInterpreter || runAstInterpreter || runCompiler || runLLVM || outputFile) {
     if (runParser) {
       if (jsonOutput) {
         console.log(JSON.stringify({ ast: mergedProgram, errors: allParseErrors }, null, 2));
@@ -245,6 +248,28 @@ else {
           console.log("");
         }
       }
+    }
+
+    // ── Run LLVM Emitter ───────────────────────────────────────
+
+    if (runLLVM) {
+      if (allParseErrors.length > 0) {
+        console.error(`\n  ⚠ Cannot compile: ${allParseErrors.length} parse error(s) found.`);
+        for (const err of allParseErrors) console.error(`    ${err.toString()}`);
+        process.exit(1);
+      }
+
+      console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
+      console.log(`  ║  Viktor Script LLVM Emitter                                ║`);
+      console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
+      console.log("");
+
+      const emitter = new LLVMEmitter();
+      const llvmIR = emitter.emit(mergedProgram);
+      const outPath = outputFile || resolvedPath.replace(/\.vks$/, ".ll");
+      writeFileSync(outPath, llvmIR);
+      console.log(`  ✓ LLVM IR generated successfully to ${outPath}`);
+      console.log("");
     }
 
     // ── Run Compiler ───────────────────────────────────────────
