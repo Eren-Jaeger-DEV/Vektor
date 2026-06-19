@@ -121,7 +121,6 @@ function tokenize(source: str) -> Token {
     } else {
 
     let c: str = advance(l);
-    print("pos:", l.pos, "char:", c);
 
     if (c == "(") { add_token(l, TOKEN_LPAREN, c, 0.0); }
     else if (c == ")") { add_token(l, TOKEN_RPAREN, c, 0.0); }
@@ -135,7 +134,10 @@ function tokenize(source: str) -> Token {
       else { add_token(l, TOKEN_COLON, c, 0.0); }
     }
     else if (c == ",") { add_token(l, TOKEN_COMMA, c, 0.0); }
-    else if (c == ".") { add_token(l, TOKEN_DOT, c, 0.0); }
+    else if (c == ".") {
+      if (match_char(l, ".")) { add_token(l, TOKEN_DOUBLE_DOT, "..", 0.0); }
+      else { add_token(l, TOKEN_DOT, c, 0.0); }
+    }
     else if (c == "?") { add_token(l, TOKEN_QUESTION, c, 0.0); }
     else if (c == "-") {
       if (match_char(l, "-")) { add_token(l, TOKEN_MINUS_MINUS, "--", 0.0); }
@@ -211,7 +213,7 @@ function tokenize(source: str) -> Token {
         while (is_digit(peek(l))) {
           num_str = num_str + advance(l);
         }
-        if (peek(l) == "." and is_digit(peek_next(l))) {
+        if (peek(l) == "." and peek_next(l) != "." and is_digit(peek_next(l))) {
           num_str = num_str + advance(l);
           while (is_digit(peek(l))) {
             num_str = num_str + advance(l);

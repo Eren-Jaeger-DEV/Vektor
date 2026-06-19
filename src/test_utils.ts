@@ -23,10 +23,8 @@ export function compileToVM(source: string) {
   (global as any).__vks_args = [vksPath, vkbPath];
   const vmCompile = new VM();
   
-  console.log(`[TEST TRACE] Compiling ${vksPath}...`);
   try {
     vmCompile.run(compilerProg);
-    console.log(`[TEST TRACE] Compiled successfully.`);
   } catch(e: any) {
     console.log(`[TEST TRACE] ERROR compiling: ${e.message}`);
     throw e;

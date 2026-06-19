@@ -11,15 +11,7 @@ function compile_file_with_imports(file_path: str) -> ASTNode {
   }
   let tokens: Token = tokenize(source);
   
-  let d_curr: Token = tokens;
-  while (d_curr != null) {
-    print("Token:", d_curr.type, d_curr.lexeme);
-    d_curr = d_curr.next;
-  }
-  
-  print("Tokenized:", file_path);
   let ast: ASTNode = parse(tokens);
-  print("Parsed:", file_path);
   
   let merged_decls_head: ASTNode = null;
   let merged_decls_tail: ASTNode = null;
@@ -80,7 +72,6 @@ function main() {
     output_file = args_get(1);
   }
   
-  print("Bootstrapping compiler...");
   let c: Compiler = compile_file(target_file);
   serialize_compiler(c, output_file);
 }

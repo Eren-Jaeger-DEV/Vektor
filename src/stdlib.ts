@@ -324,14 +324,11 @@ export function registerVMBuiltins(
   define("toString", 1, (val) => (cb.formatValue ?? String)(val));
   define("readLine", 0, () => readLineSync());
   define("read_file", 1, (path) => {
-    console.log(`[DEBUG] read_file(${JSON.stringify(path)}) typeof=${typeof path}`);
     if (typeof path !== "string") return null;
     try {
       const content = readFileSync(path, "utf-8");
-      console.log(`[DEBUG] read_file content length=${content.length}`);
       return content;
     } catch (e) {
-      console.log(`[DEBUG] read_file error:`, e);
       return null;
     }
   });
@@ -417,7 +414,6 @@ export function registerVMBuiltins(
 
   define("args_get", 1, (index) => {
     const i = Number(index);
-    console.log(`[DEBUG] args_get(${i}) => ${global.__vks_args ? global.__vks_args[i] : 'none'}`);
     if (global.__vks_args && i >= 0 && i < global.__vks_args.length) {
       return global.__vks_args[i];
     }
@@ -433,6 +429,7 @@ export function registerVMBuiltins(
   define("ceil", 1, (n) => Math.ceil(n));
 
   define("charAt", 2, (s, i) => String(s).charAt(i));
+  define("charCodeAt", 2, (s, i) => String(s).charCodeAt(i));
   define("indexOf", 2, (s, target) => String(s).indexOf(String(target)));
   define("toUpper", 1, (s) => String(s).toUpperCase());
   define("toLower", 1, (s) => String(s).toLowerCase());

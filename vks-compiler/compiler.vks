@@ -230,6 +230,12 @@ function compile_expression(c: Compiler, node: ASTNode) {
   } else if (kind == "BooleanLiteral") {
     if (node.bool_val) { emit_op(c, OP_TRUE, node.line); } 
     else { emit_op(c, OP_FALSE, node.line); }
+  } else if (kind == "CharLiteral") {
+    let char_code: i32 = charCodeAt(node.str_val, 0);
+    let const_val: Constant = Constant { type: CONST_TYPE_INT, int_val: char_code, float_val: 0.0, str_val: "", fn_index: 0, next: null };
+    let idx: i32 = chunk_add_constant(c.chunk, const_val);
+    emit_op(c, OP_CONST, node.line);
+    emit_u16(c, idx, node.line);
   } else if (kind == "NullLiteral") {
     emit_op(c, OP_NULL, node.line);
   } else if (kind == "BinaryExpr") {
@@ -307,6 +313,33 @@ function compile_expression(c: Compiler, node: ASTNode) {
       emit_op(c, OP_DEREF_SET, node.line);
     } else {
       print("Invalid assignment target");
+      exit(1);
+    }
+  } else if (kind == "PostfixExpr") {
+    if (node.left.kind == "Identifier") {
+      compile_expression(c, node.left); // push old value
+      compile_expression(c, node.left); // push again
+      emit_op(c, OP_CONST, node.line);
+      let const_val: Constant = Constant { type: CONST_TYPE_INT, int_val: 1, float_val: 0.0, str_val: "", fn_index: 0, next: null };
+      let idx: i32 = chunk_add_constant(c.chunk, const_val);
+      emit_u16(c, idx, node.line);
+
+      if (node.op == "++") { emit_op(c, OP_ADD, node.line); }
+      else { emit_op(c, OP_SUB, node.line); }
+
+      let slot: i32 = compiler_resolve_local(c, node.left.name);
+      if (slot != -1) {
+        emit_op(c, OP_STORE_LOCAL, node.line);
+        emit_u16(c, slot, node.line);
+        emit_op(c, OP_POP, node.line);
+      } else {
+        let const_name: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.name, fn_index: 0, next: null };
+        let idx2: i32 = chunk_add_constant(c.chunk, const_name);
+        emit_op(c, OP_STORE_GLOBAL, node.line);
+        emit_u16(c, idx2, node.line);
+      }
+    } else {
+      print("Postfix increment/decrement only supported on identifiers");
       exit(1);
     }
   } else if (kind == "Identifier") {

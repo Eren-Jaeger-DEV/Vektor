@@ -783,8 +783,6 @@ function parse_program(p: Parser) -> ASTNode {
 }
 
 function parse(tokens: Token) -> ASTNode {
-  print("parse: creating parser");
   let p: Parser = parser_new(tokens);
-  print("parse: parser created, calling parse_program");
   return parse_program(p);
 }

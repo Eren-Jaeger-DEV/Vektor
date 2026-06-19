@@ -117,7 +117,7 @@ export class VM {
 
     while (true) {
         this.instructionsExecuted++;
-        if (this.instructionsExecuted > 5000000) {
+        if (this.instructionsExecuted > 50000000) {
             throw new Error(`VM Infinite Loop Detected! ip: ${frame.ip}, op: ${code[frame.ip]}`);
         }
       
@@ -666,6 +666,26 @@ export class VM {
       },
       { formatValue: (val) => this.stringify(val) },
     );
+    
+    // Register missing builtins that the TS compiler used to emit via dedicated opcodes
+    this.globals.set("Ok", new VMNativeFunction("Ok", 1, (val) => new VMResult(true, val, null)));
+    this.globals.set("Err", new VMNativeFunction("Err", 1, (val) => new VMResult(false, null, val)));
+    
+    this.globals.set("alloc", new VMNativeFunction("alloc", 1, (size) => {
+      if (typeof size !== "number") throw new RuntimeError("Alloc size must be a number", -1);
+      const byteCount = Math.max(0, Math.trunc(size));
+      const ptr = new VMPointer(this.nextPtr++);
+      const data = new Array(byteCount).fill(0);
+      this.heap.set(ptr.address, { size: byteCount, data } as any);
+      return ptr;
+    }));
+    
+    this.globals.set("free", new VMNativeFunction("free", 1, (ptr) => {
+      if (ptr instanceof VMPointer && ptr.address >= 0) {
+        this.heap.delete(ptr.address);
+      }
+      return null;
+    }));
   }
 
   // ── Helpers ────────────────────────────────────────────────

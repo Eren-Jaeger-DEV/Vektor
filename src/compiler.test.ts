@@ -2,15 +2,13 @@
 // Viktor Script — Bytecode Compiler Tests
 // ============================================================
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { Lexer } from "./lexer.js";
 import { Parser } from "./parser.js";
 import { Compiler } from "./compiler.js";
 import { Serializer } from "./serializer.js";
 import { Op } from "./opcodes.js";
 import { CompiledProgram, ConstantType } from "./chunk.js";
-
-import { describe, it, expect } from "vitest";
 import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
 import { VM } from "./vm.js";
@@ -72,7 +70,7 @@ describe("Self-Hosted VKS Compiler", () => {
     const vm = new VM();
     vm.run(compiledProg);
 
-    expect(vm.lastPopped?.value).toBe(100);
+    expect(vm.lastPopped).toBe(100);
   });
 
   it("compiles and executes structs and arrays", () => {
@@ -90,7 +88,7 @@ describe("Self-Hosted VKS Compiler", () => {
     const vm = new VM();
     vm.run(compiledProg);
 
-    expect(vm.lastPopped?.value).toBe(20);
+    expect(vm.lastPopped).toBe(20);
   });
 
   it("compiles array intrinsics natively", () => {
@@ -107,6 +105,6 @@ describe("Self-Hosted VKS Compiler", () => {
     const vm = new VM();
     vm.run(compiledProg);
 
-    expect(vm.lastPopped?.value).toBe(2);
+    expect(vm.lastPopped).toBe(2);
   });
 });

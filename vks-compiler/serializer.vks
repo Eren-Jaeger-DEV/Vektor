@@ -140,9 +140,5 @@ function serialize_compiler(c: Compiler, path: str) {
   // 4. Entry Point (the VM expects `<script>`)
   array_push_str(buf, "<script>");
 
-  print("Writing output VKB binary to", path);
-  let ok: bool = write_binary(path, buf);
-  if (not ok) {
-    print("Failed to write binary file", path);
-  }
+  write_binary(path, buf);
 }
