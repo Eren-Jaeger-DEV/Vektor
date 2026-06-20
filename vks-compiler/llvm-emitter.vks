@@ -282,6 +282,24 @@ struct EmitResult {
   type: str;
 }
 
+function emit_lvalue(emitter: LLVMEmitter, expr: ASTNode) -> EmitResult {
+  if (expr.kind == "Identifier") {
+    let var_name: str = expr.name;
+    let llvm_type: str = scope_resolve(emitter.current_scope, var_name);
+    if (llvm_type == null) { llvm_type = "i32"; }
+    return EmitResult { reg: "%" + var_name, type: llvm_type + "*" };
+  }
+  
+  if (expr.kind == "UnaryExpr") {
+    if (expr.op == "*") {
+      return emit_expr(emitter, expr.right, null); // Evaluates to a pointer
+    }
+  }
+  
+  emit_line(emitter, "  ; TODO: Invalid L-value expr: " + expr.kind);
+  return EmitResult { reg: "0", type: "i32*" };
+}
+
 // Stub for now
 function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> EmitResult {
   if (expr == null) { return EmitResult { reg: "0", type: "i32" }; }
@@ -295,6 +313,180 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
   if (expr.kind == "BooleanLiteral") {
     if (expr.bool_val) { return EmitResult { reg: "1", type: "i1" }; }
     else { return EmitResult { reg: "0", type: "i1" }; }
+  }
+  if (expr.kind == "NullLiteral") {
+    return EmitResult { reg: "null", type: "i8*" };
+  }
+  
+  if (expr.kind == "Identifier") {
+    let lval: EmitResult = emit_lvalue(emitter, expr);
+    // remove * from lval.type
+    // A primitive slice hack: assuming we just remove the last char if it's '*'
+    // We can't slice strings easily in self-hosted, so we'll just resolve from scope
+    let val_type: str = scope_resolve(emitter.current_scope, expr.name);
+    if (val_type == null) { val_type = "i32"; }
+    let reg: str = next_temp(emitter);
+    emit_line(emitter, "  " + reg + " = load " + val_type + ", " + lval.type + " " + lval.reg);
+    return EmitResult { reg: reg, type: val_type };
+  }
+  
+  if (expr.kind == "BinaryExpr") {
+    let left: EmitResult = emit_expr(emitter, expr.left, null);
+    let right: EmitResult = emit_expr(emitter, expr.right, null);
+    let reg: str = next_temp(emitter);
+    let op: str = expr.op;
+    let is_float: bool = (left.type == "float" or left.type == "double");
+    let llvm_op: str = "add";
+    
+    if (op == "+") { if (is_float) { llvm_op = "fadd"; } else { llvm_op = "add"; } }
+    else if (op == "-") { if (is_float) { llvm_op = "fsub"; } else { llvm_op = "sub"; } }
+    else if (op == "*") { if (is_float) { llvm_op = "fmul"; } else { llvm_op = "mul"; } }
+    else if (op == "/") { if (is_float) { llvm_op = "fdiv"; } else { llvm_op = "sdiv"; } }
+    else if (op == "==") { if (is_float) { llvm_op = "fcmp oeq"; } else { llvm_op = "icmp eq"; } }
+    else if (op == "!=") { if (is_float) { llvm_op = "fcmp one"; } else { llvm_op = "icmp ne"; } }
+    else if (op == "<") { if (is_float) { llvm_op = "fcmp olt"; } else { llvm_op = "icmp slt"; } }
+    else if (op == ">") { if (is_float) { llvm_op = "fcmp ogt"; } else { llvm_op = "icmp sgt"; } }
+    else if (op == "<=") { if (is_float) { llvm_op = "fcmp ole"; } else { llvm_op = "icmp sle"; } }
+    else if (op == ">=") { if (is_float) { llvm_op = "fcmp oge"; } else { llvm_op = "icmp sge"; } }
+    
+    emit_line(emitter, "  " + reg + " = " + llvm_op + " " + left.type + " " + left.reg + ", " + right.reg);
+    
+    if (op == "==" or op == "!=" or op == "<" or op == ">" or op == "<=" or op == ">=") {
+      return EmitResult { reg: reg, type: "i1" };
+    }
+    return EmitResult { reg: reg, type: left.type };
+  }
+  
+  if (expr.kind == "AssignmentExpr") {
+    let val_res: EmitResult = emit_expr(emitter, expr.right, null);
+    let lval: EmitResult = emit_lvalue(emitter, expr.left);
+    emit_line(emitter, "  store " + val_res.type + " " + val_res.reg + ", " + lval.type + " " + lval.reg);
+    return val_res;
+  }
+  
+  if (expr.kind == "PostfixExpr") {
+    let lval: EmitResult = emit_lvalue(emitter, expr.left);
+    // Since we don't have substring, we look up the var again or assume i32 for simplicity unless we can resolve it
+    let val_type: str = "i32";
+    if (expr.left.kind == "Identifier") {
+      val_type = scope_resolve(emitter.current_scope, expr.left.name);
+      if (val_type == null) { val_type = "i32"; }
+    } else {
+      // It might be a deref pointer, we'll assume i32 for now in the self-host unless we add a string_slice
+      emit_line(emitter, "  ; TODO: accurate type for complex Postfix lval");
+    }
+    
+    let is_float: bool = (val_type == "float" or val_type == "double");
+    let op: str = expr.op;
+    
+    let old_reg: str = next_temp(emitter);
+    emit_line(emitter, "  " + old_reg + " = load " + val_type + ", " + lval.type + " " + lval.reg);
+    
+    let one_reg: str = "1";
+    if (is_float) { one_reg = "1.0"; }
+    let new_reg: str = next_temp(emitter);
+    
+    if (op == "++") {
+      if (is_float) { emit_line(emitter, "  " + new_reg + " = fadd " + val_type + " " + old_reg + ", " + one_reg); }
+      else { emit_line(emitter, "  " + new_reg + " = add " + val_type + " " + old_reg + ", " + one_reg); }
+    } else {
+      if (is_float) { emit_line(emitter, "  " + new_reg + " = fsub " + val_type + " " + old_reg + ", " + one_reg); }
+      else { emit_line(emitter, "  " + new_reg + " = sub " + val_type + " " + old_reg + ", " + one_reg); }
+    }
+    
+    emit_line(emitter, "  store " + val_type + " " + new_reg + ", " + lval.type + " " + lval.reg);
+    return EmitResult { reg: old_reg, type: val_type };
+  }
+  
+  if (expr.kind == "UnaryExpr") {
+    let op: str = expr.op;
+    if (op == "&") {
+      if (expr.right.kind == "Identifier") {
+        let var_name: str = expr.right.name;
+        let llvm_type: str = scope_resolve(emitter.current_scope, var_name);
+        if (llvm_type == null) { llvm_type = "i32"; }
+        return EmitResult { reg: "%" + var_name, type: llvm_type + "*" };
+      } else {
+        emit_line(emitter, "  ; TODO: Address-Of requires identifier");
+        return EmitResult { reg: "null", type: "i8*" };
+      }
+    } else if (op == "*") {
+      let ptr_res: EmitResult = emit_expr(emitter, expr.right, null);
+      // Strip *
+      let val_type: str = "i32"; // Simplified
+      if (expr.right.kind == "Identifier") {
+         let resolved: str = scope_resolve(emitter.current_scope, expr.right.name);
+         if (resolved != null) {
+           // Wait, ptr_res.type is what we want to strip
+           emit_line(emitter, "  ; TODO: accurate pointer deref type string stripping");
+         }
+      }
+      let reg: str = next_temp(emitter);
+      emit_line(emitter, "  " + reg + " = load " + val_type + ", " + ptr_res.type + " " + ptr_res.reg);
+      return EmitResult { reg: reg, type: val_type };
+    } else if (op == "!" or op == "-") {
+      let res: EmitResult = emit_expr(emitter, expr.right, null);
+      let new_reg: str = next_temp(emitter);
+      if (op == "!") {
+        emit_line(emitter, "  " + new_reg + " = xor i1 " + res.reg + ", 1");
+        return EmitResult { reg: new_reg, type: "i1" };
+      } else {
+        let is_float: bool = (res.type == "float" or res.type == "double");
+        if (is_float) { emit_line(emitter, "  " + new_reg + " = fneg " + res.type + " " + res.reg); }
+        else { emit_line(emitter, "  " + new_reg + " = sub " + res.type + " 0, " + res.reg); }
+        return EmitResult { reg: new_reg, type: res.type };
+      }
+    }
+  }
+  
+  if (expr.kind == "AllocExpr") {
+    let size_res: EmitResult = emit_expr(emitter, expr.left, null);
+    let arg_reg: str = size_res.reg;
+    
+    if (size_res.type == "i32") {
+      arg_reg = next_temp(emitter);
+      emit_line(emitter, "  " + arg_reg + " = zext i32 " + size_res.reg + " to i64");
+    }
+    
+    let reg: str = next_temp(emitter);
+    emit_line(emitter, "  " + reg + " = call i8* @malloc(i64 " + arg_reg + ")");
+    return EmitResult { reg: reg, type: "i8*" };
+  }
+  
+  if (expr.kind == "CallExpr") {
+    let callee_name: str = "unknown";
+    if (expr.callee != null and expr.callee.kind == "Identifier") {
+      callee_name = expr.callee.name;
+    }
+    
+    // Evaluate arguments
+    // We need to build a comma-separated string of args
+    let args_str: str = "";
+    let curr_arg: ASTNode = expr.args;
+    while (curr_arg != null) {
+      let arg_res: EmitResult = emit_expr(emitter, curr_arg, null);
+      if (args_str != "") { args_str = args_str + ", "; }
+      args_str = args_str + arg_res.type + " " + arg_res.reg;
+      curr_arg = curr_arg.next;
+    }
+    
+    // We hardcode basic behavior for 'print', 'free', etc., in batch 2
+    if (callee_name == "print") {
+      // Very basic print handling for testing memory ops later
+      emit_line(emitter, "  call void @vks_print_i32(i32 " + "0" + ") ; TODO proper print args");
+      return EmitResult { reg: "0", type: "void" };
+    }
+    
+    let ret_type: str = get_function_return(emitter, callee_name);
+    let reg: str = next_temp(emitter);
+    
+    if (ret_type == "void") {
+      emit_line(emitter, "  call " + ret_type + " @" + callee_name + "(" + args_str + ")");
+      return EmitResult { reg: "0", type: "void" };
+    } else {
+      emit_line(emitter, "  " + reg + " = call " + ret_type + " @" + callee_name + "(" + args_str + ")");
+      return EmitResult { reg: reg, type: ret_type };
+    }
   }
   
   emit_line(emitter, "  ; TODO: unhandled expr kind " + expr.kind);
