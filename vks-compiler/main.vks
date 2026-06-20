@@ -2,6 +2,7 @@ import "lexer.vks";
 import "parser.vks";
 import "compiler.vks";
 import "serializer.vks";
+import "pkg.vks";
 
 function compile_file_with_imports(file_path: str) -> ASTNode {
   let source: str = read_file(file_path);
@@ -67,15 +68,48 @@ function compile_file(file_path: str) -> Compiler {
 
 function main() {
   if (args_count() < 1) {
-    print("Usage: vks compile <target.vks> [-o output.vkb]");
+    print("Usage: vks <command> [args...]");
+    print("Commands:");
+    print("  compile <target.vks> [-o output.vkb]");
+    print("  init");
+    print("  install");
     return null;
   }
-  let target_file: str = args_get(0);
-  let output_file: str = "output.vkb";
-  if (args_count() >= 2) {
-    output_file = args_get(1);
+  
+  let cmd: str = args_get(0);
+  
+  if (cmd == "init") {
+    init_project(".");
+    return null;
+  }
+  if (cmd == "install") {
+    install_all(".");
+    return null;
   }
   
-  let c: Compiler = compile_file(target_file);
-  serialize_compiler(c, output_file);
+  if (cmd == "compile") {
+    if (args_count() < 2) {
+      print("Usage: vks compile <target.vks> [-o output.vkb]");
+      return null;
+    }
+    let target_file: str = args_get(1);
+    let output_file: str = "output.vkb";
+    if (args_count() >= 4 and args_get(2) == "-o") {
+      output_file = args_get(3);
+    }
+    
+    let c: Compiler = compile_file(target_file);
+    serialize_compiler(c, output_file);
+    return null;
+  }
+  
+  // Backwards compatibility for running just `vks target.vks` without `compile`
+  let target_file_old: str = cmd;
+  let output_file_old: str = "output.vkb";
+  if (args_count() >= 3 and args_get(1) == "-o") {
+    output_file_old = args_get(2);
+  }
+  
+  let c2: Compiler = compile_file(target_file_old);
+  serialize_compiler(c2, output_file_old);
 }

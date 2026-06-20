@@ -30,29 +30,15 @@ import { RuntimeError, ParseError, LexerError, formatErrorWithSnippet } from "./
 const args = process.argv.slice(2);
 const cwd = process.cwd();
 
-// --- Package Manager (vks init / vks install) via pkg.vks ---
-if (args[0] === "init" || args[0] === "install") {
-  const pkgPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "vks-compiler", "pkg.vks");
-  if (!existsSync(pkgPath)) {
-    console.error("pkg.vks not found. Ensure you are running from the source tree.");
+// --- Command Delegation to Self-Hosted Multi-Tool ---
+if (args[0] === "init" || args[0] === "install" || args[0] === "compile") {
+  const compilerPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "compiler.vkb");
+  if (!existsSync(compilerPath)) {
+    console.error("compiler.vkb not found. Please bootstrap the self-hosted compiler first.");
     process.exit(1);
   }
-  
-  const source = readFileSync(pkgPath, "utf-8");
-  const lexer = new Lexer(source);
-  const { tokens, errors: lexErrors } = lexer.tokenize();
-  if (lexErrors.length > 0) { console.error(lexErrors); process.exit(1); }
-  
-  const parser = new Parser(tokens);
-  const { program, errors: parseErrors } = parser.parse();
-  if (parseErrors.length > 0) { console.error(parseErrors); process.exit(1); }
-  
-  // Set up arguments for pkg.vks
-  (global as any).__vks_args = args;
-  
-  const interpreter = new Interpreter();
-  interpreter.execute(program);
-  process.exit(0);
+  args.unshift(compilerPath);
+  args.push("--exec");
 }
 
 if (args.length === 0) {

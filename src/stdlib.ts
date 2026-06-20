@@ -15,7 +15,6 @@ import {
   mkInteger, mkFloat, mkBool, mkString, mkNull, mkVoid, mkMap, mkArray,
   stringify,
 } from "./values.js";
-import { resolvePackageEntry } from "./package-manager.js";
 import { RuntimeError } from "./errors.js";
 
 // ── Stdlib Paths ─────────────────────────────────────────────
@@ -65,6 +64,24 @@ export function resolveImportPath(currentFile: string, importPath: string, proje
     // Fallback to old relative behavior
     return resolve(dirname(currentFile), importPath);
   }
+}
+
+export function resolvePackageEntry(projectRoot: string, packageName: string): string {
+  const pkgDir = resolve(projectRoot, "vks_modules", packageName);
+  const pkgManifestPath = resolve(pkgDir, "viktor.json");
+
+  if (existsSync(pkgManifestPath)) {
+    const pkgManifest = JSON.parse(readFileSync(pkgManifestPath, "utf-8"));
+    return resolve(pkgDir, pkgManifest.entry);
+  }
+
+  // Fallback convention if the package has no manifest: look for index.vks
+  const fallback = resolve(pkgDir, "index.vks");
+  if (existsSync(fallback)) return fallback;
+
+  throw new Error(
+    `Cannot resolve package "${packageName}" — no viktor.json or index.vks found in ${pkgDir}`
+  );
 }
 
 // ── Builtin Metadata ─────────────────────────────────────────

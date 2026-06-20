@@ -88,20 +88,4 @@ function install_all(dir: str) -> void {
   print("Done.");
 }
 
-function main() {
-  if (args_count() < 1) {
-    print("Usage: vks pkg init | vks pkg install");
-    return;
-  }
-  
-  let cmd: str = args_get(0);
-  let dir: str = "."; 
-  
-  if (cmd == "init") {
-    init_project(dir);
-  } else if (cmd == "install") {
-    install_all(dir);
-  } else {
-    print("Unknown command: " + cmd);
-  }
-}
+
