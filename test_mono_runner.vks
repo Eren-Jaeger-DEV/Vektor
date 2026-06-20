@@ -1,0 +1,25 @@
+import "vks-compiler/lexer.vks";
+import "vks-compiler/parser.vks";
+import "vks-compiler/monomorphizer.vks";
+
+function print_declarations(head: ASTNode) -> void {
+  let curr: ASTNode = head;
+  while (curr != null) {
+    print("Decl:", curr.kind, curr.name);
+    curr = curr.next;
+  }
+}
+
+function main() -> void {
+  let file_content: str = read_file("test_nested_generic.vks");
+  let tokens: Token = tokenize(file_content);
+  let ast: ASTNode = parse(tokens);
+  
+  print("--- Before Monomorphize ---");
+  print_declarations(ast.right);
+  
+  let mono_ast: ASTNode = monomorphize(ast);
+  
+  print("--- After Monomorphize ---");
+  print_declarations(mono_ast.right);
+}

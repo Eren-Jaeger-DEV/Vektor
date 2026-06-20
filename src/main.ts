@@ -31,7 +31,7 @@ const args = process.argv.slice(2);
 const cwd = process.cwd();
 
 // --- Command Delegation to Self-Hosted Multi-Tool ---
-if (args[0] === "init" || args[0] === "install" || args[0] === "compile") {
+if (args[0] === "init" || args[0] === "install" || args[0] === "compile" || args[0] === "--llvm-self") {
   const compilerPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "compiler.vkb");
   if (!existsSync(compilerPath)) {
     console.error("compiler.vkb not found. Please bootstrap the self-hosted compiler first.");

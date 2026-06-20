@@ -1,0 +1,21 @@
+function math_test(a: i32, b: i32) -> i32 {
+  let c: i32 = a;
+  let result: i32 = 0;
+  if (c > 0) {
+    result = c;
+  } else {
+    result = b;
+  }
+  
+  let i: i32 = 0;
+  while (i < 5) {
+    result = result;
+    i = i + 1; // Wait, our `emit_expr` is just a stub right now that returns "0"!
+  }
+  
+  return result;
+}
+
+function main() {
+  let x: i32 = math_test(10, 20);
+}

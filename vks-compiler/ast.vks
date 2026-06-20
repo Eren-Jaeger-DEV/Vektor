@@ -42,8 +42,12 @@ struct ASTNode {
   params: ASTNode; // linked list via next
   returnType: ASTNode; // TypeNode
 
-  // Linked list pointer for lists (statements in block, args, params)
+  // Linked list pointer for lists (statements in block, args, params, typeArgs, typeParams)
   next: ASTNode;
+
+  // Generics
+  typeParams: ASTNode; // linked list via next
+  typeArgs: ASTNode; // linked list via next
 }
 
 function ast_node_new(kind: str, line: i32, column: i32) -> ASTNode {
@@ -72,6 +76,8 @@ function ast_node_new(kind: str, line: i32, column: i32) -> ASTNode {
     fields: null,
     params: null,
     returnType: null,
+    typeParams: null,
+    typeArgs: null,
     next: null
   };
 }

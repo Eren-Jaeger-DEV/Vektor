@@ -146,12 +146,26 @@ function parse_prefix(p: Parser) -> ASTNode {
   if (type == TOKEN_IDENTIFIER) {
     let node: ASTNode = ast_node_new("Identifier", token.line, token.column);
     node.name = token.lexeme;
+    
+    // We only try to parse type args for identifiers if it looks like a generic call or struct literal
+    let saved_current: Token = p.current;
+    let saved_previous: Token = p.previous;
+    
+    // Check if it's a struct literal: Identifier { or Identifier < T > {
+    // Or a generic function call: Identifier < T > (
+    let has_type_args: bool = false;
+    if (is_type_args(p)) {
+      node.typeArgs = try_parse_type_args(p);
+      has_type_args = true;
+    }
+
     if (parser_check(p, TOKEN_LBRACE)) {
       let char1: str = charAt(token.lexeme, 0);
       if (char1 >= "A" and char1 <= "Z") {
         return parse_struct_literal(p, node);
       }
     }
+    
     return node;
   }
   if (type == TOKEN_LPAREN) {
@@ -322,6 +336,53 @@ function parse_infix(p: Parser, left: ASTNode, operator: Token, min_precedence: 
   return left;
 }
 
+function is_type_args(p: Parser) -> bool {
+  if (p.current == null or p.current.type != TOKEN_LESS) { return false; }
+  let curr: Token = p.current.next;
+  let depth: i32 = 1;
+  while (curr != null and curr.type != TOKEN_EOF) {
+    if (curr.type == TOKEN_LESS) { depth = depth + 1; }
+    else if (curr.type == TOKEN_GREATER) { 
+      depth = depth - 1; 
+      if (depth == 0) {
+        let after_greater: Token = curr.next;
+        if (after_greater != null and (after_greater.type == TOKEN_LBRACE or after_greater.type == TOKEN_LPAREN)) {
+          return true;
+        }
+        return false;
+      }
+    }
+    else if (curr.type == TOKEN_SEMICOLON or curr.type == TOKEN_LBRACE) {
+      return false;
+    }
+    curr = curr.next;
+  }
+  return false;
+}
+
+function try_parse_type_args(p: Parser) -> ASTNode {
+  if (not parser_match_token(p, TOKEN_LESS)) { return null; }
+  
+  let args_head: ASTNode = null;
+  let args_tail: ASTNode = null;
+
+  let first: bool = true;
+  let parsing: bool = true;
+  while (parsing and (first or parser_match_token(p, TOKEN_COMMA))) {
+    first = false;
+    let arg: ASTNode = parse_type(p);
+    if (args_head == null) {
+      args_head = arg;
+      args_tail = arg;
+    } else {
+      args_tail.next = arg;
+      args_tail = arg;
+    }
+  }
+  parser_consume(p, TOKEN_GREATER, "Expected '>' after type arguments.");
+  return args_head;
+}
+
 // ── Types ──────────────────────────────────────────────────
 
 function parse_type(p: Parser) -> ASTNode {
@@ -334,6 +395,7 @@ function parse_type(p: Parser) -> ASTNode {
       parser_match_token(p, TOKEN_VOID) or parser_match_token(p, TOKEN_IDENTIFIER)) {
     typeNode = ast_node_new("PrimitiveType", parser_previous(p).line, parser_previous(p).column);
     typeNode.name = parser_previous(p).lexeme;
+    typeNode.typeArgs = try_parse_type_args(p);
   } else if (parser_match_token(p, TOKEN_PTR)) {
     let ptrToken: Token = parser_previous(p);
     parser_consume(p, TOKEN_LESS, "Expected '<' after 'ptr'.");
@@ -658,9 +720,35 @@ function parse_declaration(p: Parser) -> ASTNode {
   return ast_node_new("Unknown", parser_peek(p).line, parser_peek(p).column);
 }
 
+function parse_generic_params(p: Parser) -> ASTNode {
+  if (not parser_match_token(p, TOKEN_LESS)) { return null; }
+  let params_head: ASTNode = null;
+  let params_tail: ASTNode = null;
+
+  let first: bool = true;
+  let parsing: bool = true;
+  while (parsing and (first or parser_match_token(p, TOKEN_COMMA))) {
+    first = false;
+    let name_tok: Token = parser_consume(p, TOKEN_IDENTIFIER, "Expected generic parameter name.");
+    let param: ASTNode = ast_node_new("TypeParam", name_tok.line, name_tok.column);
+    param.name = name_tok.lexeme;
+
+    if (params_head == null) {
+      params_head = param;
+      params_tail = param;
+    } else {
+      params_tail.next = param;
+      params_tail = param;
+    }
+  }
+  parser_consume(p, TOKEN_GREATER, "Expected '>' after generic parameters.");
+  return params_head;
+}
+
 function parse_struct_decl(p: Parser) -> ASTNode {
   let struct_token: Token = parser_previous(p);
   let name_token: Token = parser_consume(p, TOKEN_IDENTIFIER, "Expected struct name.");
+  let typeParams: ASTNode = parse_generic_params(p);
   
   parser_consume(p, TOKEN_LBRACE, "Expected '{' before struct body.");
   
@@ -691,12 +779,14 @@ function parse_struct_decl(p: Parser) -> ASTNode {
   let node: ASTNode = ast_node_new("StructDecl", struct_token.line, struct_token.column);
   node.name = name_token.lexeme;
   node.fields = fields_head;
+  node.typeParams = typeParams;
   return node;
 }
 
 function parse_function_decl(p: Parser) -> ASTNode {
   let fn_token: Token = parser_previous(p);
   let name_token: Token = parser_consume(p, TOKEN_IDENTIFIER, "Expected function name.");
+  let typeParams: ASTNode = parse_generic_params(p);
   
   parser_consume(p, TOKEN_LPAREN, "Expected '(' after function name.");
   
@@ -744,6 +834,7 @@ function parse_function_decl(p: Parser) -> ASTNode {
   node.params = params_head;
   node.returnType = returnType;
   node.body = body;
+  node.typeParams = typeParams;
   return node;
 }
 

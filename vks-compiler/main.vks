@@ -3,6 +3,8 @@ import "parser.vks";
 import "compiler.vks";
 import "serializer.vks";
 import "pkg.vks";
+import "monomorphizer.vks";
+import "llvm-emitter.vks";
 
 function compile_file_with_imports(file_path: str) -> ASTNode {
   let source: str = read_file(file_path);
@@ -22,7 +24,7 @@ function compile_file_with_imports(file_path: str) -> ASTNode {
     let imported_path: str = curr_import.str_val;
     if (imported_path == "lexer.vks" or imported_path == "parser.vks" or imported_path == "ast.vks"
         or imported_path == "compiler.vks" or imported_path == "opcodes.vks" or imported_path == "tokens.vks" 
-        or imported_path == "serializer.vks") {
+        or imported_path == "serializer.vks" or imported_path == "monomorphizer.vks" or imported_path == "llvm-emitter.vks") {
       imported_path = "vks-compiler/" + imported_path;
     } else {
       imported_path = resolve_import(file_path, imported_path);
@@ -100,6 +102,35 @@ function main() {
     
     let c: Compiler = compile_file(target_file);
     serialize_compiler(c, output_file);
+    return null;
+  }
+  
+  if (cmd == "--llvm-self") {
+    if (args_count() < 2) {
+      print("Usage: vks --llvm-self <target.vks> [-o output.ll] [--target triple]");
+      return null;
+    }
+    let target_file: str = args_get(1);
+    let output_file: str = "output.ll";
+    let target_triple: str = "x86_64-w64-mingw32"; // default
+
+    let i: i32 = 2;
+    while (i < args_count()) {
+      if (args_get(i) == "-o" and i + 1 < args_count()) {
+        output_file = args_get(i + 1);
+        i = i + 2;
+      } else if (args_get(i) == "--target" and i + 1 < args_count()) {
+        target_triple = args_get(i + 1);
+        i = i + 2;
+      } else {
+        i = i + 1;
+      }
+    }
+    
+    let ast: ASTNode = compile_file_with_imports(target_file);
+    let mono_ast: ASTNode = monomorphize(ast);
+    let llvm_ir: str = emit_program(mono_ast, target_triple);
+    write_file(output_file, llvm_ir);
     return null;
   }
   

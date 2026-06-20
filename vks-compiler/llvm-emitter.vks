@@ -1,0 +1,523 @@
+import "ast.vks";
+
+// ============================================================
+// LLVM Emitter - Batch 1: Foundations
+// ============================================================
+
+// ── Type mapping ────────────────────────────────────────────
+
+function vks_type_to_llvm(typeNode: ASTNode) -> str {
+  if (typeNode == null) { return "i32"; } // Fallback
+  
+  if (typeNode.kind == "PrimitiveType") {
+    if (typeNode.name == "i8" or typeNode.name == "byte") { return "i8"; }
+    if (typeNode.name == "i16") { return "i16"; }
+    if (typeNode.name == "i32") { return "i32"; }
+    if (typeNode.name == "i64") { return "i64"; }
+    if (typeNode.name == "f32") { return "float"; }
+    if (typeNode.name == "f64") { return "double"; }
+    if (typeNode.name == "bool") { return "i1"; }
+    if (typeNode.name == "void") { return "void"; }
+    if (typeNode.name == "str") { return "%str"; }
+    return "%" + typeNode.name; // Struct type
+  }
+  
+  if (typeNode.kind == "PointerType") {
+    return vks_type_to_llvm(typeNode.returnType) + "*";
+  }
+  
+  if (typeNode.kind == "ArrayType") {
+    if (typeNode.int_val != 0) { // Assuming fixed size sets int_val
+      return "[" + toString(typeNode.int_val) + " x " + vks_type_to_llvm(typeNode.returnType) + "]";
+    } else {
+      // dynamic array struct format, stripping % and *
+      let elem_type: str = vks_type_to_llvm(typeNode.returnType);
+      // Wait, VKS doesn't have regex replace. For simplicity in self-host, we'll assume we can strip later or it's handled
+      // A simple strip logic for % and *
+      if (charAt(elem_type, 0) == "%") {
+        // can't substring easily without a helper, we'll keep it simple: just use raw name for structs
+        if (typeNode.returnType.kind == "PrimitiveType") {
+          return "%array_" + typeNode.returnType.name;
+        }
+      }
+      return "%array_dynamic"; // Fallback, we'll refine string manipulation later
+    }
+  }
+  
+  if (typeNode.kind == "NullableType") {
+    return vks_type_to_llvm(typeNode.returnType) + "*";
+  }
+  
+  if (typeNode.kind == "ResultType") {
+    // VKS doesn't have regex replace easily.
+    return "%Result_Type"; // Placeholder, refine later
+  }
+  
+  return "i32";
+}
+
+function llvm_type_size(llvmType: str) -> i32 {
+  if (llvmType == "i8" or llvmType == "i1") { return 1; }
+  if (llvmType == "i16") { return 2; }
+  if (llvmType == "i32" or llvmType == "float") { return 4; }
+  if (llvmType == "i64" or llvmType == "double" or llvmType == "%str") { return 8; }
+  // default
+  return 8; 
+}
+
+// ── Scope for Type Lookups ──────────────────────────────────
+
+struct ScopeEntry {
+  name: str;
+  type: str;
+  next: ScopeEntry;
+}
+
+struct Scope {
+  locals: ScopeEntry;
+  parent: Scope;
+}
+
+function scope_new(parent: Scope) -> Scope {
+  return Scope {
+    locals: null,
+    parent: parent
+  };
+}
+
+function scope_define(scope: Scope, name: str, type: str) -> void {
+  let entry: ScopeEntry = ScopeEntry {
+    name: name,
+    type: type,
+    next: scope.locals
+  };
+  scope.locals = entry;
+}
+
+function scope_resolve(scope: Scope, name: str) -> str {
+  let curr_scope: Scope = scope;
+  while (curr_scope != null) {
+    let curr_entry: ScopeEntry = curr_scope.locals;
+    while (curr_entry != null) {
+      if (curr_entry.name == name) {
+        return curr_entry.type;
+      }
+      curr_entry = curr_entry.next;
+    }
+    curr_scope = curr_scope.parent;
+  }
+  return null;
+}
+
+// ── Struct Layout tracking ──────────────────────────────────
+
+struct StructFieldEntry {
+  name: str;
+  type: str;
+  index: i32;
+  next: StructFieldEntry;
+}
+
+struct StructLayoutEntry {
+  name: str;
+  llvm_type: str;
+  fields: StructFieldEntry;
+  next: StructLayoutEntry;
+}
+
+struct FuncReturnEntry {
+  name: str;
+  llvm_return: str;
+  next: FuncReturnEntry;
+}
+
+// ── Output buffer tracking ──────────────────────────────────
+
+struct OutputBuffer {
+  line: str;
+  next: OutputBuffer;
+}
+
+// ── LLVMEmitter State ───────────────────────────────────────
+
+struct LLVMEmitter {
+  out_head: OutputBuffer;
+  out_tail: OutputBuffer;
+  
+  temp_count: i32;
+  block_count: i32;
+  
+  struct_layouts: StructLayoutEntry;
+  function_returns: FuncReturnEntry;
+  
+  current_scope: Scope;
+  target_triple: str;
+}
+
+function llvm_emitter_new(target_triple: str) -> LLVMEmitter {
+  let global_scope: Scope = scope_new(null);
+  
+  // Register builtin types
+  scope_define(global_scope, "print", "void");
+  scope_define(global_scope, "readFile", "%str");
+  scope_define(global_scope, "writeFile", "void");
+  scope_define(global_scope, "str_length", "i32");
+  
+  return LLVMEmitter {
+    out_head: null,
+    out_tail: null,
+    temp_count: 0,
+    block_count: 0,
+    struct_layouts: null,
+    function_returns: null,
+    current_scope: global_scope,
+    target_triple: target_triple
+  };
+}
+
+function emit_line(emitter: LLVMEmitter, line: str) -> void {
+  let buf: OutputBuffer = OutputBuffer { line: line, next: null };
+  if (emitter.out_head == null) {
+    emitter.out_head = buf;
+    emitter.out_tail = buf;
+  } else {
+    emitter.out_tail.next = buf;
+    emitter.out_tail = buf;
+  }
+}
+
+function next_temp(emitter: LLVMEmitter) -> str {
+  let t: i32 = emitter.temp_count;
+  emitter.temp_count = t + 1;
+  return "%t" + toString(t);
+}
+
+function next_block(emitter: LLVMEmitter) -> str {
+  let b: i32 = emitter.block_count;
+  emitter.block_count = b + 1;
+  return "b" + toString(b);
+}
+
+function set_function_return(emitter: LLVMEmitter, name: str, ret_type: str) -> void {
+  let entry: FuncReturnEntry = FuncReturnEntry {
+    name: name,
+    llvm_return: ret_type,
+    next: emitter.function_returns
+  };
+  emitter.function_returns = entry;
+}
+
+function get_function_return(emitter: LLVMEmitter, name: str) -> str {
+  let curr: FuncReturnEntry = emitter.function_returns;
+  while (curr != null) {
+    if (curr.name == name) { return curr.llvm_return; }
+    curr = curr.next;
+  }
+  return "void";
+}
+
+function add_struct_layout(emitter: LLVMEmitter, name: str, llvm_type: str) -> StructLayoutEntry {
+  let entry: StructLayoutEntry = StructLayoutEntry {
+    name: name,
+    llvm_type: llvm_type,
+    fields: null,
+    next: emitter.struct_layouts
+  };
+  emitter.struct_layouts = entry;
+  return entry;
+}
+
+function get_struct_layout(emitter: LLVMEmitter, name: str) -> StructLayoutEntry {
+  let curr: StructLayoutEntry = emitter.struct_layouts;
+  while (curr != null) {
+    if (curr.name == name) { return curr; }
+    curr = curr.next;
+  }
+  return null;
+}
+
+function add_struct_field(layout: StructLayoutEntry, name: str, type: str, index: i32) -> void {
+  let field: StructFieldEntry = StructFieldEntry {
+    name: name,
+    type: type,
+    index: index,
+    next: null
+  };
+  // Append to end to preserve index order conceptually, though index is stored
+  if (layout.fields == null) {
+    layout.fields = field;
+  } else {
+    let curr: StructFieldEntry = layout.fields;
+    while (curr.next != null) {
+      curr = curr.next;
+    }
+    curr.next = field;
+  }
+}
+
+function get_struct_field(layout: StructLayoutEntry, name: str) -> StructFieldEntry {
+  let curr: StructFieldEntry = layout.fields;
+  while (curr != null) {
+    if (curr.name == name) { return curr; }
+    curr = curr.next;
+  }
+  return null;
+}
+
+function push_scope(emitter: LLVMEmitter) -> void {
+  let new_scope: Scope = scope_new(emitter.current_scope);
+  emitter.current_scope = new_scope;
+}
+
+function pop_scope(emitter: LLVMEmitter) -> void {
+  if (emitter.current_scope != null) {
+    emitter.current_scope = emitter.current_scope.parent;
+  }
+}
+
+// ── Expressions ─────────────────────────────────────────────
+
+struct EmitResult {
+  reg: str;
+  type: str;
+}
+
+// Stub for now
+function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> EmitResult {
+  if (expr == null) { return EmitResult { reg: "0", type: "i32" }; }
+  
+  if (expr.kind == "IntegerLiteral") {
+    return EmitResult { reg: toString(expr.int_val), type: "i32" };
+  }
+  if (expr.kind == "FloatLiteral") {
+    return EmitResult { reg: toString(expr.float_val), type: "double" };
+  }
+  if (expr.kind == "BooleanLiteral") {
+    if (expr.bool_val) { return EmitResult { reg: "1", type: "i1" }; }
+    else { return EmitResult { reg: "0", type: "i1" }; }
+  }
+  
+  emit_line(emitter, "  ; TODO: unhandled expr kind " + expr.kind);
+  return EmitResult { reg: "0", type: "i32" };
+}
+
+// ── Statements ──────────────────────────────────────────────
+
+function emit_stmt(emitter: LLVMEmitter, stmt: ASTNode) -> void {
+  if (stmt == null) { return; }
+
+  if (stmt.kind == "ReturnStatement") {
+    emit_line(emitter, "  call void @vks_pop_frame()");
+    if (stmt.left == null) {
+      emit_line(emitter, "  ret void");
+      return;
+    }
+    let res: EmitResult = emit_expr(emitter, stmt.left, null);
+    emit_line(emitter, "  ret " + res.type + " " + res.reg);
+    return;
+  }
+
+  if (stmt.kind == "LetStatement" or stmt.kind == "ConstStatement") {
+    let llvm_type: str = vks_type_to_llvm(stmt.returnType);
+    scope_define(emitter.current_scope, stmt.name, llvm_type);
+
+    emit_line(emitter, "  %" + stmt.name + " = alloca " + llvm_type);
+    if (stmt.initializer != null) {
+      let res: EmitResult = emit_expr(emitter, stmt.initializer, llvm_type);
+      emit_line(emitter, "  store " + res.type + " " + res.reg + ", " + llvm_type + "* %" + stmt.name);
+    }
+    return;
+  }
+
+  if (stmt.kind == "IfStatement") {
+    let cond: EmitResult = emit_expr(emitter, stmt.condition, "i1");
+    let then_label: str = next_block(emitter);
+    let else_label: str = next_block(emitter);
+    let end_label: str = next_block(emitter);
+
+    emit_line(emitter, "  br i1 " + cond.reg + ", label %" + then_label + ", label %" + else_label);
+    
+    emit_line(emitter, then_label + ":");
+    push_scope(emitter);
+    if (stmt.body.kind == "Block") {
+      let curr: ASTNode = stmt.body.body;
+      while (curr != null) { emit_stmt(emitter, curr); curr = curr.next; }
+    } else { emit_stmt(emitter, stmt.body); }
+    pop_scope(emitter);
+    emit_line(emitter, "  br label %" + end_label);
+
+    emit_line(emitter, else_label + ":");
+    if (stmt.else_body != null) {
+      push_scope(emitter);
+      if (stmt.else_body.kind == "Block") {
+        let curr: ASTNode = stmt.else_body.body;
+        while (curr != null) { emit_stmt(emitter, curr); curr = curr.next; }
+      } else { emit_stmt(emitter, stmt.else_body); }
+      pop_scope(emitter);
+    }
+    emit_line(emitter, "  br label %" + end_label);
+
+    emit_line(emitter, end_label + ":");
+    return;
+  }
+
+  if (stmt.kind == "WhileStatement") {
+    let cond_label: str = next_block(emitter);
+    let body_label: str = next_block(emitter);
+    let end_label: str = next_block(emitter);
+
+    emit_line(emitter, "  br label %" + cond_label);
+    
+    emit_line(emitter, cond_label + ":");
+    let cond: EmitResult = emit_expr(emitter, stmt.condition, "i1");
+    emit_line(emitter, "  br i1 " + cond.reg + ", label %" + body_label + ", label %" + end_label);
+
+    emit_line(emitter, body_label + ":");
+    push_scope(emitter);
+    if (stmt.body.kind == "Block") {
+      let curr: ASTNode = stmt.body.body;
+      while (curr != null) { emit_stmt(emitter, curr); curr = curr.next; }
+    } else { emit_stmt(emitter, stmt.body); }
+    pop_scope(emitter);
+    emit_line(emitter, "  br label %" + cond_label);
+
+    emit_line(emitter, end_label + ":");
+    return;
+  }
+
+  if (stmt.kind == "ForStatement") {
+    push_scope(emitter);
+    
+    if (stmt.initializer != null) { emit_stmt(emitter, stmt.initializer); }
+    
+    let cond_label: str = next_block(emitter);
+    let body_label: str = next_block(emitter);
+    let end_label: str = next_block(emitter);
+
+    emit_line(emitter, "  br label %" + cond_label);
+    
+    emit_line(emitter, cond_label + ":");
+    if (stmt.condition != null) {
+      let cond: EmitResult = emit_expr(emitter, stmt.condition, "i1");
+      emit_line(emitter, "  br i1 " + cond.reg + ", label %" + body_label + ", label %" + end_label);
+    } else {
+      emit_line(emitter, "  br label %" + body_label);
+    }
+
+    emit_line(emitter, body_label + ":");
+    if (stmt.body.kind == "Block") {
+      let curr: ASTNode = stmt.body.body;
+      while (curr != null) { emit_stmt(emitter, curr); curr = curr.next; }
+    } else { emit_stmt(emitter, stmt.body); }
+    
+    if (stmt.increment != null) {
+      emit_expr(emitter, stmt.increment, null);
+    }
+    
+    emit_line(emitter, "  br label %" + cond_label);
+
+    emit_line(emitter, end_label + ":");
+    pop_scope(emitter);
+    return;
+  }
+
+  if (stmt.kind == "ExpressionStatement") {
+    emit_expr(emitter, stmt.left, null);
+    return;
+  }
+}
+
+// ── Top Level ───────────────────────────────────────────────
+
+function emit_function(emitter: LLVMEmitter, func_node: ASTNode) -> void {
+  push_scope(emitter);
+  emitter.temp_count = 0;
+  emitter.block_count = 0;
+
+  let ret_type: str = "void";
+  if (func_node.returnType != null) { ret_type = vks_type_to_llvm(func_node.returnType); }
+
+  let params_str: str = "";
+  let curr_param: ASTNode = func_node.params;
+  while (curr_param != null) {
+    let llvm_type: str = vks_type_to_llvm(curr_param.returnType);
+    scope_define(emitter.current_scope, curr_param.name, llvm_type);
+    
+    if (params_str != "") { params_str = params_str + ", "; }
+    params_str = params_str + llvm_type + " %" + curr_param.name + ".arg";
+    curr_param = curr_param.next;
+  }
+
+  let actual_name: str = func_node.name;
+  if (func_node.name == "main") { actual_name = "vks_main"; }
+
+  emit_line(emitter, "define " + ret_type + " @" + actual_name + "(" + params_str + ") {");
+  emit_line(emitter, "entry:");
+
+  // For simplicity in batch 1, we omit the stack trace vks_push_frame logic since we don't have strings built yet.
+  
+  // Allocate stack slots for params
+  curr_param = func_node.params;
+  while (curr_param != null) {
+    let llvm_type: str = vks_type_to_llvm(curr_param.returnType);
+    emit_line(emitter, "  %" + curr_param.name + " = alloca " + llvm_type);
+    emit_line(emitter, "  store " + llvm_type + " %" + curr_param.name + ".arg, " + llvm_type + "* %" + curr_param.name);
+    curr_param = curr_param.next;
+  }
+
+  // Body
+  if (func_node.body.kind == "Block") {
+    let curr_stmt: ASTNode = func_node.body.body;
+    while (curr_stmt != null) {
+      emit_stmt(emitter, curr_stmt);
+      curr_stmt = curr_stmt.next;
+    }
+  }
+
+  // Safety net
+  if (ret_type == "void") {
+    emit_line(emitter, "  ret void");
+  } else {
+    emit_line(emitter, "  ret " + ret_type + " zeroinitializer");
+  }
+
+  emit_line(emitter, "}");
+  emit_line(emitter, "");
+  
+  pop_scope(emitter);
+}
+
+function emit_program(program: ASTNode, target_triple: str) -> str {
+  let emitter: LLVMEmitter = llvm_emitter_new(target_triple);
+  
+  // First pass: define struct types (we skip for batch 1 to keep it simple, but we can do it if needed)
+  // Second pass: define function signatures
+  let curr_decl: ASTNode = program.right;
+  while (curr_decl != null) {
+    if (curr_decl.kind == "FunctionDecl") {
+      let ret_type: str = "void";
+      if (curr_decl.returnType != null) { ret_type = vks_type_to_llvm(curr_decl.returnType); }
+      set_function_return(emitter, curr_decl.name, ret_type);
+    }
+    curr_decl = curr_decl.next;
+  }
+
+  // Third pass: emit functions
+  curr_decl = program.right;
+  while (curr_decl != null) {
+    if (curr_decl.kind == "FunctionDecl") {
+      emit_function(emitter, curr_decl);
+    }
+    curr_decl = curr_decl.next;
+  }
+
+  // Collect output
+  let out_str: str = "";
+  let curr_buf: OutputBuffer = emitter.out_head;
+  while (curr_buf != null) {
+    out_str = out_str + curr_buf.line + "\n";
+    curr_buf = curr_buf.next;
+  }
+
+  return out_str;
+}
