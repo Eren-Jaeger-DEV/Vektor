@@ -1,0 +1,25 @@
+fn worker(counter_ptr: i32*, mutex: i8*) {
+    let i: i32 = 0;
+    while i < 1000 {
+        mutex_lock(mutex);
+        let current: i32 = *counter_ptr;
+        *counter_ptr = current + 1;
+        mutex_unlock(mutex);
+        i++;
+    }
+}
+
+fn main() {
+    let counter: i32 = 0;
+    let mutex: i8* = mutex_create();
+    
+    let t1: i8* = spawn worker(&counter, mutex);
+    let t2: i8* = spawn worker(&counter, mutex);
+    
+    thread_join(t1);
+    thread_join(t2);
+    
+    mutex_destroy(mutex);
+    
+    print("Final safe counter:", counter); // should be 2000
+}

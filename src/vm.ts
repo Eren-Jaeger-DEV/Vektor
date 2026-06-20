@@ -115,7 +115,8 @@ export class VM {
     let chunk = frame.fn.chunk;
     let code = chunk.code;
 
-    while (true) {
+    try {
+      while (true) {
         this.instructionsExecuted++;
         if (this.instructionsExecuted > 50000000) {
             throw new Error(`VM Infinite Loop Detected! ip: ${frame.ip}, op: ${code[frame.ip]}`);
@@ -625,6 +626,17 @@ export class VM {
         default:
           throw new Error(`VM: Unknown opcode ${op} at ip ${frame.ip - 1}`);
       }
+    }
+    } catch (e: any) {
+      if (e instanceof RuntimeError || (e instanceof Error && e.name === "RuntimeError")) {
+        e.vmTrace = [];
+        for (let i = this.frames.length - 1; i >= 0; i--) {
+          const f = this.frames[i];
+          const l = f.fn.chunk.lines[f.ip - 1] || "?";
+          e.vmTrace.push(`  at ${f.fn.name} (line ${l})`);
+        }
+      }
+      throw e;
     }
   }
 

@@ -47,6 +47,7 @@ export enum TokenType {
   CLONE = "CLONE",
   MOVE = "MOVE",
   MAP = "MAP",
+  SPAWN = "SPAWN",
 
   // ── Type Keywords ────────────────────────────────────────
   VOID = "VOID",
@@ -153,6 +154,7 @@ export const KEYWORDS: ReadonlyMap<string, TokenType> = new Map([
   ["clone", TokenType.CLONE],
   ["move", TokenType.MOVE],
   ["map", TokenType.MAP],
+  ["spawn", TokenType.SPAWN],
 
   // Type keywords
   ["void", TokenType.VOID],

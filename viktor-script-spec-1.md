@@ -468,22 +468,7 @@ function main() {
 
 ---
 
-## 18. Roadmap
-
-| Phase | Goal |
-|-------|------|
-| Phase 1 | Lexer — tokenize `.vks` source code |
-| Phase 2 | Parser — build Abstract Syntax Tree (AST) |
-| Phase 3 | Interpreter — walk AST and execute (interpreted mode) |
-| Phase 4 | Bytecode Compiler — compile AST to bytecode |
-| Phase 5 | Virtual Machine — execute bytecode (compiled mode) |
-| Phase 6 | Standard Library — io, memory, math, string, os |
-| Phase 7 | Self-hosting — Viktor Script compiler written in Viktor Script |
-| Phase 8 | LLVM target — native binary compilation |
-
----
-
-## 19. Reserved Keywords
+## 18. Reserved Keywords
 
 ```
 let      const    function  fn       return

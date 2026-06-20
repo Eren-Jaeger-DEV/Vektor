@@ -62,6 +62,30 @@ export class ParseError extends Error {
 }
 
 /**
+ * Helper to format a ParseError with a Rust-style source code snippet pointer.
+ */
+export function formatErrorWithSnippet(err: ParseError, source: string, fileName: string): string {
+  const lines = source.split(/\r?\n/);
+  const lineIdx = err.line - 1;
+  const lineText = lines[lineIdx] || "";
+  
+  const spanLength = err.token.lexeme.length > 0 ? err.token.lexeme.length : 1;
+  
+  const lineNumberStr = String(err.line);
+  const padding = " ".repeat(lineNumberStr.length);
+  const prefix = `${lineNumberStr} | `;
+  
+  const pointers = "^".repeat(spanLength);
+  const pointerPadding = " ".repeat(err.column - 1);
+  
+  return `error: ${err.message}\n` +
+         `  --> ${fileName}:${err.line}:${err.column}\n` +
+         ` ${padding} |\n` +
+         ` ${prefix}${lineText}\n` +
+         ` ${padding} | ${pointerPadding}${pointers}`;
+}
+
+/**
  * Represents a runtime error encountered during interpretation.
  */
 export class RuntimeError extends Error {
@@ -69,8 +93,24 @@ export class RuntimeError extends Error {
   readonly line: number;
   /** 1-based column number where the error occurred */
   readonly column: number;
+  /** Formatted call stack from the Virtual Machine */
+  public vmTrace?: string[];
 
-  constructor(line: number, column: number, message: string) {
+  constructor(arg1: number | string, arg2: number, arg3?: string) {
+    let message = "";
+    let line = 0;
+    let column = 0;
+    
+    if (typeof arg1 === "string") {
+      message = arg1;
+      line = arg2;
+      column = 0;
+    } else {
+      line = arg1;
+      column = arg2;
+      message = arg3 || "";
+    }
+    
     super(message);
     this.name = "RuntimeError";
     this.line = line;
@@ -81,7 +121,11 @@ export class RuntimeError extends Error {
    * Format the error for display.
    */
   toString(): string {
-    return `[Line ${this.line}, Col ${this.column}] Runtime Error: ${this.message}`;
+    let base = `[Line ${this.line}, Col ${this.column}] Runtime Error: ${this.message}`;
+    if (this.vmTrace && this.vmTrace.length > 0) {
+      base += "\nStack trace:\n" + this.vmTrace.join("\n");
+    }
+    return base;
   }
 }
 

@@ -1,0 +1,29 @@
+fn main() {
+  // 1. Environment variables
+  let pathEnv: str? = get_env("PATH");
+  if (pathEnv != null) {
+    print("PATH env var is set.");
+  }
+
+  // 2. CLI Arguments
+  let args: str[] = get_args();
+  print(format("CLI Arguments count: {}", array_length(args)));
+
+  // 3. String split & replace
+  let sentence: str = "Hello, world! Welcome to Viktor Script.";
+  let parts: str[] = str_split(sentence, " ");
+  print(format("Split sentence into {} parts. First part: {}", array_length(parts), parts[0]));
+
+  let excited: str = str_replace(sentence, ".", "!!!");
+  print(excited);
+
+  // 4. File deletion
+  write_file("temp_phase11.txt", "this is a temp file");
+  if (file_exists("temp_phase11.txt")) {
+    print("Temp file created.");
+  }
+  delete_file("temp_phase11.txt");
+  if (!file_exists("temp_phase11.txt")) {
+    print("Temp file successfully deleted.");
+  }
+}

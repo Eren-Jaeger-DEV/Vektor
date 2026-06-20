@@ -25,7 +25,8 @@ export type TypeNode =
 
 export interface PrimitiveType extends ASTNode {
   kind: "PrimitiveType";
-  name: string; // e.g., "i32", "f64", "bool", "byte", "str", "void"
+  name: string; // e.g., "i32", "str", or custom "Box"
+  typeArgs?: TypeNode[]; // e.g., <i32> for Box<i32>
 }
 
 export interface ArrayType extends ASTNode {
@@ -76,7 +77,8 @@ export type Expression =
   | AllocExpr
   | CloneExpr
   | ArrayLiteral
-  | AssignmentExpr;
+  | AssignmentExpr
+  | SpawnExpr;
 
 export interface IntegerLiteral extends ASTNode {
   kind: "IntegerLiteral";
@@ -110,6 +112,7 @@ export interface NullLiteral extends ASTNode {
 export interface Identifier extends ASTNode {
   kind: "Identifier";
   name: string;
+  typeArgs?: TypeNode[];
 }
 
 export interface BinaryExpr extends ASTNode {
@@ -134,6 +137,7 @@ export interface PostfixExpr extends ASTNode {
 export interface CallExpr extends ASTNode {
   kind: "CallExpr";
   callee: Expression;
+  typeArgs?: TypeNode[];
   args: Expression[];
 }
 
@@ -157,6 +161,7 @@ export interface StructLiteralField extends ASTNode {
 export interface StructLiteral extends ASTNode {
   kind: "StructLiteral";
   name: string; // The struct name
+  typeArgs?: TypeNode[];
   fields: StructLiteralField[];
 }
 
@@ -185,6 +190,11 @@ export interface AssignmentExpr extends ASTNode {
   kind: "AssignmentExpr";
   target: Expression; // Must be valid l-value (Identifier, FieldAccess, IndexAccess)
   value: Expression;
+}
+
+export interface SpawnExpr extends ASTNode {
+  kind: "SpawnExpr";
+  call: CallExpr;
 }
 
 // ── Statements ───────────────────────────────────────────────
@@ -271,6 +281,8 @@ export type Declaration =
   | FunctionDecl
   | ConstStatement; // Const can be top-level
 
+
+
 export interface ImportDecl extends ASTNode {
   kind: "ImportDecl";
   path: string;
@@ -284,6 +296,7 @@ export interface StructField extends ASTNode {
 export interface StructDecl extends ASTNode {
   kind: "StructDecl";
   name: Identifier;
+  typeParams?: Identifier[]; // e.g., <T, U>
   fields: StructField[];
 }
 
@@ -295,6 +308,7 @@ export interface FunctionParam extends ASTNode {
 export interface FunctionDecl extends ASTNode {
   kind: "FunctionDecl";
   name: Identifier;
+  typeParams?: Identifier[]; // e.g., <T>
   params: FunctionParam[];
   returnType?: TypeNode; // undefined if omitted (implies void)
   body: Block;

@@ -8,25 +8,51 @@
 // ============================================================
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { resolve } from "path";
-import { ASTNode } from "./ast";
-import { Disassembler } from "./disassembler";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+import { Disassembler } from "./disassembler.js";
 import { resolveImportPath } from "./stdlib.js";
 import { Lexer } from "./lexer.js";
 import { Token, TokenType } from "./tokens.js";
 import { Parser } from "./parser.js";
-import { ASTPrinter } from "./printer.js";
+import { Monomorphizer } from "./monomorphizer.js";
 import { Interpreter } from "./interpreter.js";
-import { RuntimeError, ParseError, LexerError } from "./errors.js";
+import { Compiler } from "./compiler.js";
+import { VM } from "./vm.js";
 import { Serializer } from "./serializer.js";
-import { VM, VMPointer } from "./vm.js";
-import { Program, Declaration } from "./ast.js";
-import { Chunk, ConstantType, CompiledProgram } from "./chunk.js";
 import { LLVMEmitter } from "./llvm-emitter.js";
-
-// ── Argument Parsing ─────────────────────────────────────────
+import { Program, Declaration, ASTNode } from "./ast.js";
+import { Chunk, ConstantType, CompiledProgram } from "./chunk.js";
+import { ASTPrinter } from "./printer.js";
+import { RuntimeError, ParseError, LexerError, formatErrorWithSnippet } from "./errors.js";
 
 const args = process.argv.slice(2);
+const cwd = process.cwd();
+
+// --- Package Manager (vks init / vks install) via pkg.vks ---
+if (args[0] === "init" || args[0] === "install") {
+  const pkgPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "vks-compiler", "pkg.vks");
+  if (!existsSync(pkgPath)) {
+    console.error("pkg.vks not found. Ensure you are running from the source tree.");
+    process.exit(1);
+  }
+  
+  const source = readFileSync(pkgPath, "utf-8");
+  const lexer = new Lexer(source);
+  const { tokens, errors: lexErrors } = lexer.tokenize();
+  if (lexErrors.length > 0) { console.error(lexErrors); process.exit(1); }
+  
+  const parser = new Parser(tokens);
+  const { program, errors: parseErrors } = parser.parse();
+  if (parseErrors.length > 0) { console.error(parseErrors); process.exit(1); }
+  
+  // Set up arguments for pkg.vks
+  (global as any).__vks_args = args;
+  
+  const interpreter = new Interpreter();
+  interpreter.execute(program);
+  process.exit(0);
+}
 
 if (args.length === 0) {
   console.log("Viktor Script v0.2.0");
@@ -116,8 +142,8 @@ else {
 
   const resolvedFiles = new Set<string>();
   const allDeclarations: Declaration[] = [];
-  const allLexErrors: LexerError[] = [];
-  const allParseErrors: ParseError[] = [];
+  const allLexErrors: { err: LexerError, source: string, path: string }[] = [];
+  const allParseErrors: { err: ParseError, source: string, path: string }[] = [];
   let mainTokens: Token[] = [];
   let mainProgram: Program | null = null;
 
@@ -140,7 +166,7 @@ else {
 
     const lexer = new Lexer(source);
     const { tokens, errors: lexErrors } = lexer.tokenize();
-    allLexErrors.push(...lexErrors);
+    allLexErrors.push(...lexErrors.map(e => ({ err: e, source, path: currentPath })));
 
     if (isMain) {
       mainTokens = tokens;
@@ -148,7 +174,7 @@ else {
 
     const parser = new Parser(tokens);
     const { program, errors: parseErrors } = parser.parse();
-    allParseErrors.push(...parseErrors);
+    allParseErrors.push(...parseErrors.map(e => ({ err: e, source, path: currentPath })));
 
     if (isMain) {
       mainProgram = program;
@@ -209,7 +235,7 @@ else {
 
   if (allLexErrors.length > 0) {
     console.log(`  ⚠ ${allLexErrors.length} lexer error(s):`);
-    for (const err of allLexErrors) console.log(`    ${err.toString()}`);
+    for (const e of allLexErrors) console.log(`    ${e.err.toString()}`);
     console.log("");
     process.exit(1);
   }
@@ -223,12 +249,46 @@ else {
      column: mainProgram!.column,
   };
 
+  // --- Pass 2: Monomorphization (Generics) ---
+  const mono = new Monomorphizer();
+  const monoProgram = mono.monomorphize(mergedProgram);
+
+  // --- Pass 3: Concurrency Backend Check ---
+  if (!runLLVM && !runParser && (runInterpreter || runAstInterpreter || runCompiler)) {
+    let hasSpawn = false;
+    const checkNode = (node: ASTNode) => {
+      if (hasSpawn) return;
+      if (node.kind === "SpawnExpr") {
+        hasSpawn = true;
+        return;
+      }
+      for (const key in node) {
+        const val = (node as any)[key];
+        if (val && typeof val === "object" && typeof val.kind === "string") {
+          checkNode(val);
+        } else if (Array.isArray(val)) {
+          for (const item of val) {
+            if (item && typeof item === "object" && typeof item.kind === "string") {
+              checkNode(item);
+            }
+          }
+        }
+      }
+    };
+    for (const decl of monoProgram.declarations) checkNode(decl);
+
+    if (hasSpawn) {
+      console.error(`\n  ✗ Concurrency Error: 'spawn' requires native compilation. Use --llvm.\n`);
+      process.exit(1);
+    }
+  }
+
   // ── Run Parser Output ────────────────────────────────────────
 
   if (runParser || runInterpreter || runAstInterpreter || runCompiler || runLLVM || outputFile) {
     if (runParser) {
       if (jsonOutput) {
-        console.log(JSON.stringify({ ast: mergedProgram, errors: allParseErrors }, null, 2));
+        console.log(JSON.stringify({ ast: monoProgram, errors: allParseErrors }, null, 2));
       } else {
         console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
         console.log(`  ║  Viktor Script Parser (Merged AST)                         ║`);
@@ -236,12 +296,14 @@ else {
         console.log("");
 
         const printer = new ASTPrinter();
-        console.log(printer.print(mergedProgram));
+        console.log(printer.print(monoProgram));
 
         if (allParseErrors.length > 0) {
-          console.log(`  ⚠ ${allParseErrors.length} parse error(s):`);
-          for (const err of allParseErrors) console.log(`    ${err.toString()}`);
-          console.log("");
+          console.log(`\n  ⚠ ${allParseErrors.length} parse error(s):\n`);
+          for (const e of allParseErrors) {
+            console.log(formatErrorWithSnippet(e.err, e.source, e.path));
+            console.log("");
+          }
           process.exit(1);
         } else {
           console.log("  ✓ AST parsed successfully.");
@@ -254,8 +316,11 @@ else {
 
     if (runLLVM) {
       if (allParseErrors.length > 0) {
-        console.error(`\n  ⚠ Cannot compile: ${allParseErrors.length} parse error(s) found.`);
-        for (const err of allParseErrors) console.error(`    ${err.toString()}`);
+        console.error(`\n  ⚠ Cannot compile: ${allParseErrors.length} parse error(s) found.\n`);
+        for (const e of allParseErrors) {
+          console.error(formatErrorWithSnippet(e.err, e.source, e.path));
+          console.error("");
+        }
         process.exit(1);
       }
 
@@ -265,7 +330,7 @@ else {
       console.log("");
 
       const emitter = new LLVMEmitter();
-      const llvmIR = emitter.emit(mergedProgram);
+      const llvmIR = emitter.emit(monoProgram);
       const outPath = outputFile || resolvedPath.replace(/\.vks$/, ".ll");
       writeFileSync(outPath, llvmIR);
       console.log(`  ✓ LLVM IR generated successfully to ${outPath}`);
@@ -276,13 +341,16 @@ else {
 
     if (runCompiler || outputFile) {
       if (allParseErrors.length > 0) {
-        console.error(`\n  ⚠ Cannot compile: ${allParseErrors.length} parse error(s) found.`);
-        for (const err of allParseErrors) console.error(`    ${err.toString()}`);
+        console.error(`\n  ⚠ Cannot compile: ${allParseErrors.length} parse error(s) found.\n`);
+        for (const e of allParseErrors) {
+          console.error(formatErrorWithSnippet(e.err, e.source, e.path));
+          console.error("");
+        }
         process.exit(1);
       }
 
       try {
-        const compilerPath = resolve(process.cwd(), "compiler.vkb");
+        const compilerPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "compiler.vkb");
         if (!existsSync(compilerPath)) {
           console.error(`\n  ✗ Self-hosted compiler binary (compiler.vkb) not found in the current directory.`);
           console.error(`  Please make sure you have bootstrapped the compiler.\n`);
@@ -320,8 +388,11 @@ else {
 
     if (runInterpreter || runAstInterpreter) {
       if (allParseErrors.length > 0) {
-        console.error(`\n  ⚠ Cannot run: ${allParseErrors.length} parse error(s) found.`);
-        for (const err of allParseErrors) console.error(`    ${err.toString()}`);
+        console.error(`\n  ⚠ Cannot run: ${allParseErrors.length} parse error(s) found.\n`);
+        for (const e of allParseErrors) {
+          console.error(formatErrorWithSnippet(e.err, e.source, e.path));
+          console.error("");
+        }
         process.exit(1);
       }
 
@@ -342,9 +413,9 @@ else {
 
         if (runAstInterpreter) {
            const interpreter = new Interpreter();
-           interpreter.execute(mergedProgram);
+           interpreter.execute(monoProgram);
         } else {
-           const compilerPath = resolve(process.cwd(), "compiler.vkb");
+           const compilerPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "compiler.vkb");
            if (!existsSync(compilerPath)) {
              console.error(`\n  ✗ Self-hosted compiler binary (compiler.vkb) not found in the current directory.`);
              console.error(`  Please make sure you have bootstrapped the compiler.\n`);

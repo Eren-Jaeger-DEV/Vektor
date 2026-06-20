@@ -5,15 +5,18 @@
 // interpreter and the bytecode VM register functions from here.
 // ============================================================
 
-import { readFileSync, writeFileSync, existsSync, readSync, openSync, writeSync, closeSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readSync, openSync, writeSync, closeSync, mkdirSync, readdirSync, rmSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { Buffer } from "buffer";
+import { execSync } from "child_process";
 import {
   VKSValue,
-  mkInteger, mkFloat, mkBool, mkString, mkNull, mkVoid, mkMap,
+  mkInteger, mkFloat, mkBool, mkString, mkNull, mkVoid, mkMap, mkArray,
   stringify,
 } from "./values.js";
+import { resolvePackageEntry } from "./package-manager.js";
+import { RuntimeError } from "./errors.js";
 
 // ── Stdlib Paths ─────────────────────────────────────────────
 
@@ -37,9 +40,14 @@ export type StdlibModule = (typeof STDLIB_MODULES)[number];
  * Resolve an import path. Checks relative to the importing file first,
  * then falls back to the stdlib/ directory.
  */
-export function resolveImportPath(currentFile: string, importPath: string): string {
-  const relative = resolve(dirname(currentFile), importPath);
-  if (existsSync(relative)) return relative;
+export function resolveImportPath(currentFile: string, importPath: string, projectRoot: string = process.cwd()): string {
+  const isRelative = importPath.startsWith("./") || importPath.startsWith("../") || importPath.startsWith("/");
+
+  if (isRelative) {
+    const relative = resolve(dirname(currentFile), importPath);
+    if (existsSync(relative)) return relative;
+    return relative;
+  }
 
   const stdlibDirect = resolve(STDLIB_ROOT, importPath);
   if (existsSync(stdlibDirect)) return stdlibDirect;
@@ -49,7 +57,14 @@ export function resolveImportPath(currentFile: string, importPath: string): stri
   const stdlibByName = resolve(STDLIB_ROOT, baseName);
   if (existsSync(stdlibByName)) return stdlibByName;
 
-  return relative;
+  // Package manager resolution
+  const packageName = importPath.replace(/\.vks$/, "");
+  try {
+    return resolvePackageEntry(projectRoot, packageName);
+  } catch (e) {
+    // Fallback to old relative behavior
+    return resolve(dirname(currentFile), importPath);
+  }
 }
 
 // ── Builtin Metadata ─────────────────────────────────────────
@@ -80,6 +95,13 @@ export const BUILTIN_SPECS: BuiltinSpec[] = [
   { name: "write_binary",   module: "io.vks", arity: 2 },
   { name: "args_count",     module: "sys.vks", arity: 0 },
   { name: "args_get",       module: "sys.vks", arity: 1 },
+  { name: "resolve_import", module: "sys.vks", arity: 2 },
+  { name: "mkdir",          module: "sys.vks", arity: 1 },
+  { name: "file_exists",    module: "sys.vks", arity: 1 },
+  { name: "list_dir",       module: "sys.vks", arity: 1 },
+  { name: "shell_exec",     module: "sys.vks", arity: 1 },
+  { name: "parse_json",     module: "sys.vks", arity: 1 },
+  { name: "stringify_json", module: "sys.vks", arity: 1 },
   // math
   { name: "sqrt",       module: "math.vks",   arity: 1 },
   { name: "pow",        module: "math.vks",   arity: 2 },
@@ -105,6 +127,7 @@ export const BUILTIN_SPECS: BuiltinSpec[] = [
   { name: "map_get",    module: "map.vks",    arity: 2 },
   { name: "map_has",    module: "map.vks",    arity: 2 },
   { name: "map_delete", module: "map.vks",    arity: 2 },
+  { name: "map_keys",   module: "map.vks",    arity: 1 },
 ];
 
 export const BUILTIN_NAMES = new Set(BUILTIN_SPECS.map((s) => s.name));
@@ -141,6 +164,43 @@ function numVal(v: VKSValue): number {
 function strVal(v: VKSValue): string {
   if (v.type === "string") return v.value;
   throw new Error(`Expected string, got ${v.type}`);
+}
+
+export function jsToVks(val: any): VKSValue {
+  if (val === null || val === undefined) return mkNull();
+  if (typeof val === "boolean") return mkBool(val);
+  if (typeof val === "number") return Number.isInteger(val) ? mkInteger(val) : mkFloat(val);
+  if (typeof val === "string") return mkString(val);
+  if (Array.isArray(val)) return mkArray(val.map(jsToVks));
+  if (typeof val === "object") {
+    const map = mkMap();
+    for (const key of Object.keys(val)) {
+      map.entries.set(key, jsToVks(val[key]));
+    }
+    return map;
+  }
+  return mkNull();
+}
+
+export function vksToJs(val: VKSValue): any {
+  switch (val.type) {
+    case "null": return null;
+    case "void": return null;
+    case "bool": return val.value;
+    case "integer": return val.value;
+    case "float": return val.value;
+    case "byte": return val.value;
+    case "string": return val.value;
+    case "array": return val.elements.map(vksToJs);
+    case "map": {
+      const obj: any = {};
+      for (const [k, v] of val.entries) {
+        obj[k] = vksToJs(v);
+      }
+      return obj;
+    }
+    default: return null;
+  }
 }
 
 // ── Interpreter Registration ─────────────────────────────────
@@ -203,6 +263,9 @@ export function registerInterpreterBuiltins(
     process.exit(numVal(code));
     return mkVoid();
   });
+  define("panic", 1, ([msg]) => {
+    throw new RuntimeError(strVal(msg), 0, 0);
+  });
 
   define("map_create", 0, () => mkMap());
   define("map_set", 3, ([map, key, val]) => {
@@ -229,6 +292,20 @@ export function registerInterpreterBuiltins(
     }
     return mkBool(false);
   });
+  define("map_keys", 1, ([map]) => {
+    if (map.type === "map") {
+      return mkArray(Array.from(map.entries.keys()).map(mkString));
+    }
+    return mkArray([]);
+  });
+
+  // Concurrency (Stubs, Native LLVM Only)
+  const concurrencyError = () => { throw new RuntimeError("Concurrency builtins require native compilation. Use --llvm.", 0, 0); };
+  define("thread_join", 1, concurrencyError);
+  define("mutex_create", 0, concurrencyError);
+  define("mutex_lock", 1, concurrencyError);
+  define("mutex_unlock", 1, concurrencyError);
+  define("mutex_destroy", 1, concurrencyError);
 
   // System
   define("args_count", 0, () => {
@@ -241,6 +318,106 @@ export function registerInterpreterBuiltins(
       return mkString(global.__vks_args[i]);
     }
     return mkNull();
+  });
+
+  define("resolve_import", 2, ([currentFile, importStr]) => {
+    if (currentFile.type === "string" && importStr.type === "string") {
+      const resolved = resolveImportPath(currentFile.value, importStr.value, process.cwd());
+      return mkString(resolved);
+    }
+    return mkNull();
+  });
+
+  define("mkdir", 1, ([path]) => {
+    try {
+      mkdirSync(strVal(path), { recursive: true });
+      return mkVoid();
+    } catch { return mkVoid(); }
+  });
+
+  define("file_exists", 1, ([path]) => {
+    try {
+      return mkBool(existsSync(strVal(path)));
+    } catch { return mkBool(false); }
+  });
+
+  define("list_dir", 1, ([path]) => {
+    try {
+      const files = readdirSync(strVal(path));
+      return mkArray(files.map(mkString));
+    } catch { return mkArray([]); }
+  });
+
+  define("shell_exec", 1, ([cmd]) => {
+    try {
+      execSync(strVal(cmd), { stdio: "inherit" });
+      return mkInteger(0);
+    } catch (e: any) {
+      return mkInteger(e.status ?? 1);
+    }
+  });
+
+  define("parse_json", 1, ([text]) => {
+    try {
+      const obj = JSON.parse(strVal(text));
+      return jsToVks(obj);
+    } catch (e) { console.error("parse_json err", e); return mkNull(); }
+  });
+
+  define("stringify_json", 1, ([val]) => {
+    try {
+      return mkString(JSON.stringify(vksToJs(val), null, 2));
+    } catch { return mkString(""); }
+  });
+
+  define("delete_file", 1, ([path]) => {
+    try {
+      rmSync(strVal(path), { recursive: true, force: true });
+      return mkVoid();
+    } catch { return mkVoid(); }
+  });
+
+  define("get_env", 1, ([name]) => {
+    try {
+      const val = process.env[strVal(name)];
+      return val !== undefined ? mkString(val) : mkNull();
+    } catch { return mkNull(); }
+  });
+
+  define("get_args", 0, () => {
+    try {
+      return mkArray(((global as any).__vks_args || []).map((a: string) => mkString(a)));
+    } catch { return mkArray([]); }
+  });
+
+  define("str_split", 2, ([s, sep]) => {
+    try {
+      const parts = strVal(s).split(strVal(sep));
+      return mkArray(parts.map(mkString));
+    } catch { return mkArray([]); }
+  });
+
+  define("str_replace", 3, ([s, find, replacement]) => {
+    try {
+      return mkString(strVal(s).replaceAll(strVal(find), strVal(replacement)));
+    } catch { return mkString(""); }
+  });
+
+  define("free_str_array", 1, ([arr]) => mkVoid());
+
+  define("format", -1, (args) => {
+    try {
+      if (args.length === 0) return mkString("");
+      const template = strVal(args[0]);
+      let argIndex = 1;
+      const formatted = template.replace(/{}/g, () => {
+        if (argIndex < args.length) {
+          return stringify(args[argIndex++]);
+        }
+        return "{}";
+      });
+      return mkString(formatted);
+    } catch { return mkString(""); }
   });
 
   define("array_length", 1, ([arr]) => {
@@ -420,6 +597,142 @@ export function registerVMBuiltins(
     return "";
   });
 
+  define("resolve_import", 2, (currentFile, importStr) => {
+    if (typeof currentFile === "string" && typeof importStr === "string") {
+      return resolveImportPath(currentFile, importStr, process.cwd());
+    }
+    return "";
+  });
+
+  define("mkdir", 1, (path) => {
+    try {
+      if (typeof path === "string") mkdirSync(path, { recursive: true });
+    } catch {}
+    return null;
+  });
+
+  define("file_exists", 1, (path) => {
+    try {
+      return typeof path === "string" ? existsSync(path) : false;
+    } catch { return false; }
+  });
+
+  define("list_dir", 1, (path) => {
+    try {
+      if (typeof path === "string") return readdirSync(path);
+      return [];
+    } catch { return []; }
+  });
+
+  define("shell_exec", 1, (cmd) => {
+    try {
+      if (typeof cmd === "string") {
+        execSync(cmd, { stdio: "inherit" });
+        return 0;
+      }
+      return 1;
+    } catch (e: any) {
+      return e.status ?? 1;
+    }
+  });
+
+  define("parse_json", 1, (text) => {
+    try {
+      if (typeof text === "string") {
+        const obj = JSON.parse(text);
+        const jsToVm = (val: any): any => {
+          if (val === null || val === undefined) return null;
+          if (Array.isArray(val)) return val.map(jsToVm);
+          if (typeof val === "object") {
+            const map = new Map<string, any>();
+            for (const key of Object.keys(val)) {
+              map.set(key, jsToVm(val[key]));
+            }
+            return map;
+          }
+          return val; // string, number, boolean
+        };
+        return jsToVm(obj);
+      }
+    } catch {}
+    return null;
+  });
+
+  define("stringify_json", 1, (val) => {
+    try {
+      // In VM, values are just raw JS primitives, arrays, maps.
+      const vmToJs = (v: any): any => {
+        if (v instanceof Map) {
+          const obj: any = {};
+          for (const [k, v2] of v.entries()) obj[k] = vmToJs(v2);
+          return obj;
+        }
+        if (Array.isArray(v)) return v.map(vmToJs);
+        return v;
+      };
+      return JSON.stringify(vmToJs(val), null, 2);
+    } catch { return ""; }
+  });
+
+  define("delete_file", 1, (path) => {
+    try {
+      if (typeof path === "string") rmSync(path, { recursive: true, force: true });
+    } catch {}
+    return null;
+  });
+
+  define("get_env", 1, (name) => {
+    try {
+      if (typeof name === "string") {
+        const val = process.env[name];
+        return val !== undefined ? val : null;
+      }
+    } catch {}
+    return null;
+  });
+
+  define("get_args", 0, () => {
+    try {
+      if (global.__vks_args) return [...global.__vks_args];
+    } catch {}
+    return [];
+  });
+
+  define("str_split", 2, (s, sep) => {
+    try {
+      if (typeof s === "string" && typeof sep === "string") {
+        return s.split(sep);
+      }
+    } catch {}
+    return [];
+  });
+
+  define("str_replace", 3, (s, find, replacement) => {
+    try {
+      if (typeof s === "string" && typeof find === "string" && typeof replacement === "string") {
+        return s.replaceAll(find, replacement);
+      }
+    } catch {}
+    return "";
+  });
+
+  define("free_str_array", 1, (arr) => null);
+
+  define("format", -1, (...args) => {
+    try {
+      if (args.length === 0) return "";
+      const template = String(args[0]);
+      let argIndex = 1;
+      const fmt = cb.formatValue ?? String;
+      return template.replace(/{}/g, () => {
+        if (argIndex < args.length) {
+          return fmt(args[argIndex++]);
+        }
+        return "{}";
+      });
+    } catch { return ""; }
+  });
+
   define("sqrt", 1, (n) => Math.sqrt(n));
   define("pow", 2, (base, exp) => Math.pow(base, exp));
   define("sin", 1, (n) => Math.sin(n));
@@ -442,6 +755,9 @@ export function registerVMBuiltins(
     process.exit(code);
     return null;
   });
+  define("panic", 1, (msg) => {
+    throw new RuntimeError(String(msg), 0, 0);
+  });
 
   define("map_create", 0, () => new Map<string, any>());
   define("map_set", 3, (map, key, val) => {
@@ -460,4 +776,16 @@ export function registerVMBuiltins(
     if (map instanceof Map && typeof key === "string") return map.delete(key);
     return false;
   });
+  define("map_keys", 1, (map) => {
+    if (map instanceof Map) return Array.from(map.keys());
+    return [];
+  });
+
+  // Concurrency (Stubs, Native LLVM Only)
+  const concurrencyError = () => { throw new RuntimeError("Concurrency builtins require native compilation. Use --llvm.", 0, 0); };
+  define("thread_join", 1, concurrencyError);
+  define("mutex_create", 0, concurrencyError);
+  define("mutex_lock", 1, concurrencyError);
+  define("mutex_unlock", 1, concurrencyError);
+  define("mutex_destroy", 1, concurrencyError);
 }

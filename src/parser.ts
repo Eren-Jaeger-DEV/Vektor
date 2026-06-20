@@ -119,9 +119,20 @@ export class Parser {
     }
   }
 
+  private parseGenericParams(): ast.Identifier[] | undefined {
+    if (!this.match(TokenType.LESS)) return undefined;
+    const params: ast.Identifier[] = [];
+    do {
+      params.push(this.parseIdentifier("Expected generic parameter name."));
+    } while (this.match(TokenType.COMMA));
+    this.consume(TokenType.GREATER, "Expected '>' after generic parameters.");
+    return params;
+  }
+
   private parseStructDecl(): ast.StructDecl {
     const structToken = this.previous();
     const nameToken = this.consume(TokenType.IDENTIFIER, "Expected struct name.");
+    const typeParams = this.parseGenericParams();
     
     this.consume(TokenType.LBRACE, "Expected '{' before struct body.");
     
@@ -145,6 +156,7 @@ export class Parser {
     return {
       kind: "StructDecl",
       name: this.createIdentifier(nameToken),
+      typeParams,
       fields,
       line: structToken.line,
       column: structToken.column,
@@ -154,13 +166,14 @@ export class Parser {
   private parseFunctionDecl(): ast.FunctionDecl {
     const fnToken = this.previous();
     const nameToken = this.consume(TokenType.IDENTIFIER, "Expected function name.");
-    
+    const typeParams = this.parseGenericParams();
+
     this.consume(TokenType.LPAREN, "Expected '(' after function name.");
     const params: ast.FunctionParam[] = [];
     
     if (!this.check(TokenType.RPAREN)) {
       do {
-        const paramName = this.parseIdentifier();
+        const paramName = this.parseIdentifier("Expected parameter name.");
         this.consume(TokenType.COLON, "Expected ':' after parameter name.");
         const paramType = this.parseType();
         params.push({
@@ -176,8 +189,7 @@ export class Parser {
     let returnType: ast.TypeNode | undefined;
     if (this.match(TokenType.ARROW)) {
       if (this.match(TokenType.VOID)) {
-        // void is explicitly parsed but omitted from AST as returnType (or we could model it, but omitting implies void)
-        returnType = undefined; // Implies void
+        returnType = undefined;
       } else {
         returnType = this.parseType();
       }
@@ -189,6 +201,7 @@ export class Parser {
     return {
       kind: "FunctionDecl",
       name: this.createIdentifier(nameToken),
+      typeParams,
       params,
       returnType,
       body,
@@ -446,11 +459,14 @@ export class Parser {
     if (this.match(TokenType.I8, TokenType.I16, TokenType.I32, TokenType.I64, 
                    TokenType.F32, TokenType.F64, TokenType.BOOL_TYPE, 
                    TokenType.BYTE, TokenType.STR, TokenType.VOID, TokenType.IDENTIFIER)) {
+      const typeToken = this.previous();
+      const typeArgs = this.tryParseTypeArgs();
       typeNode = {
         kind: "PrimitiveType",
-        name: this.previous().lexeme,
-        line: this.previous().line,
-        column: this.previous().column,
+        name: typeToken.lexeme,
+        typeArgs,
+        line: typeToken.line,
+        column: typeToken.column,
       } as ast.PrimitiveType;
     } 
     // Pointer ptr<T>
@@ -523,6 +539,16 @@ export class Parser {
       }
     }
 
+    // Pointer suffix: *
+    while (this.match(TokenType.STAR)) {
+      typeNode = {
+        kind: "PointerType",
+        pointeeType: typeNode,
+        line: typeNode.line,
+        column: typeNode.column,
+      } as ast.PointerType;
+    }
+
     // Nullable suffix: ?
     if (this.match(TokenType.QUESTION)) {
       typeNode = {
@@ -578,10 +604,12 @@ export class Parser {
         return { kind: "NullLiteral", line: token.line, column: token.column };
       case TokenType.IDENTIFIER:
         const ident = this.createIdentifier(token);
+        const typeArgs = this.tryParseTypeArgs();
+        if (typeArgs) ident.typeArgs = typeArgs;
+        
         // Check for Struct Literal: Identifier { ... }
-        // We use a heuristic: only PascalCase identifiers can be struct literals to avoid consuming blocks.
         if (this.check(TokenType.LBRACE) && /^[A-Z]/.test(ident.name)) {
-          return this.parseStructLiteral(ident);
+          return this.parseStructLiteral(ident, typeArgs);
         }
         return ident;
       case TokenType.LPAREN:
@@ -629,6 +657,12 @@ export class Parser {
           line: token.line,
           column: token.column,
         };
+      case TokenType.SPAWN:
+        const callExpr = this.parseExpression(Precedence.UNARY);
+        if (callExpr.kind !== "CallExpr") {
+            throw this.error(token, "Expected a function call after 'spawn'.");
+        }
+        return { kind: "SpawnExpr", call: callExpr as ast.CallExpr, line: token.line, column: token.column };
       case TokenType.CLONE:
         this.consume(TokenType.LPAREN, "Expected '(' after clone.");
         const cloneExpr = this.parseExpression();
@@ -732,7 +766,7 @@ export class Parser {
     }
   }
 
-  private parseStructLiteral(ident: ast.Identifier): ast.StructLiteral {
+  private parseStructLiteral(ident: ast.Identifier, typeArgs?: ast.TypeNode[]): ast.StructLiteral {
     const lbrace = this.consume(TokenType.LBRACE, "Expected '{' for struct literal.");
     const fields: ast.StructLiteralField[] = [];
 
@@ -749,6 +783,7 @@ export class Parser {
     return {
       kind: "StructLiteral",
       name: ident.name,
+      typeArgs,
       fields,
       line: ident.line,
       column: ident.column,
@@ -788,6 +823,29 @@ export class Parser {
 
   private peek(): Token {
     return this.tokens[this.current];
+  }
+
+  private tryParseTypeArgs(): ast.TypeNode[] | undefined {
+    const startPos = this.current;
+    const errorCount = this.errors.length;
+    if (!this.match(TokenType.LESS)) return undefined;
+
+    try {
+      const args: ast.TypeNode[] = [];
+      do {
+        args.push(this.parseType());
+      } while (this.match(TokenType.COMMA));
+
+      if (this.match(TokenType.GREATER)) {
+        return args;
+      }
+    } catch {
+      // ignore errors, just backtrack
+    }
+    
+    this.current = startPos;
+    this.errors.length = errorCount;
+    return undefined;
   }
 
   private previous(): Token {

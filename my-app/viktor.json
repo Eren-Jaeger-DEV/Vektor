@@ -1,0 +1,8 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "entry": "main.vks",
+  "dependencies": {
+    "vks-math-utils": "../vks-math-utils"
+  }
+}

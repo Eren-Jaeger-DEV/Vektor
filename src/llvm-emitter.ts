@@ -38,7 +38,10 @@ export function vksTypeToLLVM(t: TypeNode): string {
         return `%array_${vksTypeToLLVM(pt.elementType).replace(/[%*]/g, "")}`;
       }
     }
-    case "NullableType":
+    case "NullableType": {
+      const nt = t as any;
+      return `${vksTypeToLLVM(nt.innerType)}*`;
+    }
     case "MapType":
       return "i8*"; // Unimplemented complex types
     case "ResultType": {
@@ -101,6 +104,7 @@ export class LLVMEmitter {
   private usedArrayTypes = new Set<string>(); // Element types like "i32", "float"
   private usedResultTypes = new Set<string>(); // "{okType}_{errType}"
   private stringLiterals = new Map<string, string>(); // str value -> global name
+  private trampolines: string[] = [];
 
   private pushScope() {
     this.scope = new Scope(this.scope);
@@ -188,6 +192,15 @@ export class LLVMEmitter {
     this.out.push(`declare void @vks_print_str(i8*, i64)`);
     this.out.push(`declare void @vks_print_bool(i32)`);
     this.out.push(`declare double @vks_sqrt(double)`);
+    this.out.push(`declare void @vks_push_frame(i8*)`);
+    this.out.push(`declare void @vks_pop_frame()`);
+    this.out.push(`declare void @vks_panic(i8*)`);
+    this.out.push(`declare i8* @vks_spawn(i8*, i8*)`);
+    this.out.push(`declare void @vks_thread_join(i8*)`);
+    this.out.push(`declare i8* @vks_mutex_create()`);
+    this.out.push(`declare void @vks_mutex_lock(i8*)`);
+    this.out.push(`declare void @vks_mutex_unlock(i8*)`);
+    this.out.push(`declare void @vks_mutex_destroy(i8*)`);
     this.out.push("");
 
     // Pass 1: Global declarations & Dynamic types
@@ -216,6 +229,28 @@ export class LLVMEmitter {
     }
     this.out.push("");
     
+    // String builtins and Networking builtins (now placed after structs are defined)
+    this.out.push(`declare %array_str @vks_get_args()`);
+    this.out.push(`declare %str* @vks_get_env(%str)`);
+    this.out.push(`declare %array_str* @vks_str_split(i8*, i64, i8*, i64)`);
+    this.out.push(`declare %str @vks_str_replace(%str, %str, %str)`);
+    this.out.push(`declare void @vks_free_str_array(%array_str)`);
+    this.out.push(`declare i8* @vks_tcp_connect(i8*, i64, i32)`);
+    this.out.push(`declare i32 @vks_socket_send(i8*, i8*, i64)`);
+    this.out.push(`declare %str* @vks_socket_recv_all(i8*)`);
+    this.out.push(`declare void @vks_socket_close(i8*)`);
+    this.out.push("");
+    
+    // Ensure all function names are in string literals for stack traces
+    for (const decl of program.declarations) {
+      if (decl.kind === "FunctionDecl") {
+        const name = (decl as FunctionDecl).name.name;
+        if (!this.stringLiterals.has(name)) {
+          this.stringLiterals.set(name, `@.str.${this.stringLiterals.size}`);
+        }
+      }
+    }
+
     // String literals
     for (const [val, name] of this.stringLiterals.entries()) {
       // Escape for LLVM, e.g. add \00
@@ -236,12 +271,14 @@ export class LLVMEmitter {
 
     this.out.push("");
 
-    // Pass 2: Functions
+    // Pass 2: Actually emit all functions
     for (const decl of program.declarations) {
       if (decl.kind === "FunctionDecl") {
         this.emitFunction(decl as FunctionDecl);
       }
     }
+
+    this.out.push(...this.trampolines);
 
     return this.out.join("\n");
   }
@@ -269,8 +306,14 @@ export class LLVMEmitter {
       })
       .join(", ");
 
-    this.out.push(`define ${retType} @${fn.name.name}(${params}) {`);
+    const actualName = fn.name.name === "main" ? "vks_main" : fn.name.name;
+    this.out.push(`define ${retType} @${actualName}(${params}) {`);
     this.out.push(`entry:`);
+
+    const fnNameStr = fn.name.name;
+    const globalName = this.stringLiterals.get(fnNameStr);
+    const escapedLen = fnNameStr.length + 1;
+    this.out.push(`  call void @vks_push_frame(i8* getelementptr inbounds ([${escapedLen} x i8], [${escapedLen} x i8]* ${globalName}, i64 0, i64 0))`);
 
     // Allocate stack slots for params
     for (const p of fn.params) {
@@ -285,6 +328,7 @@ export class LLVMEmitter {
     }
 
     // Safety net
+    this.out.push(`  call void @vks_pop_frame()`);
     if (retType === "void") {
       this.out.push(`  ret void`);
     } else {
@@ -300,6 +344,7 @@ export class LLVMEmitter {
   private emitStmt(stmt: Statement) {
     switch (stmt.kind) {
       case "ReturnStatement": {
+        this.out.push(`  call void @vks_pop_frame()`);
         if (!stmt.value) {
           this.out.push(`  ret void`);
           return;
@@ -464,7 +509,8 @@ export class LLVMEmitter {
       case "IndexAccessExpr": {
         const lval = this.emitLValue(expr.object);
         const structName = this.lookupStructName(lval.type.slice(0, -1));
-        const elemType = structName.replace("array_", "");
+        let elemType = structName.replace("array_", "");
+        if (!["i8","i16","i32","i64","float","double","i1"].includes(elemType)) elemType = "%" + elemType;
         
         const datafPtr = this.fresh();
         this.out.push(`  ${datafPtr} = getelementptr inbounds %${structName}, %${structName}* ${lval.reg}, i32 0, i32 2`);
@@ -589,6 +635,52 @@ export class LLVMEmitter {
           }
           this.out.push(`  call void @free(i8* ${ptrReg})`);
           return { reg: "0", type: "void" };
+        }
+
+        if (calleeName === "panic") {
+          const arg = this.emitExpr(expr.args[0]);
+          let ptrReg = arg.reg;
+          if (arg.type === "%str") {
+            ptrReg = this.fresh();
+            this.out.push(`  ${ptrReg} = extractvalue %str ${arg.reg}, 0`);
+          }
+          this.out.push(`  call void @vks_panic(i8* ${ptrReg})`);
+          this.out.push(`  unreachable`);
+          return { reg: "0", type: "void" };
+        }
+
+        if (calleeName === "thread_join") {
+          const handle = this.emitExpr(expr.args[0]);
+          this.out.push(`  call void @vks_thread_join(i8* ${handle.reg})`);
+          return { reg: "0", type: "void" };
+        }
+        if (calleeName === "mutex_create") {
+          const m = this.fresh();
+          this.out.push(`  ${m} = call i8* @vks_mutex_create()`);
+          return { reg: m, type: "i8*" };
+        }
+        if (calleeName === "mutex_lock") {
+          const m = this.emitExpr(expr.args[0]);
+          this.out.push(`  call void @vks_mutex_lock(i8* ${m.reg})`);
+          return { reg: "0", type: "void" };
+        }
+        if (calleeName === "mutex_unlock") {
+          const m = this.emitExpr(expr.args[0]);
+          this.out.push(`  call void @vks_mutex_unlock(i8* ${m.reg})`);
+          return { reg: "0", type: "void" };
+        }
+        if (calleeName === "mutex_destroy") {
+          const m = this.emitExpr(expr.args[0]);
+          this.out.push(`  call void @vks_mutex_destroy(i8* ${m.reg})`);
+          return { reg: "0", type: "void" };
+        }
+
+        if (calleeName === "array_length") {
+            const arr = this.emitExpr(expr.args[0]);
+            const structName = this.lookupStructName(arr.type);
+            const lenReg = this.fresh();
+            this.out.push(`  ${lenReg} = extractvalue %${structName} ${arr.reg}, 0`);
+            return { reg: lenReg, type: "i32" };
         }
 
         if (calleeName === "array_push") {
@@ -726,6 +818,101 @@ export class LLVMEmitter {
             this.out.push(`  ${reg} = call double @vks_sqrt(double ${arg.reg})`);
             return { reg, type: "double" };
         }
+        
+        if (calleeName === "get_args") {
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = call %array_str @vks_get_args()`);
+            return { reg, type: "%array_str" };
+        }
+        if (calleeName === "get_env") {
+            const arg = this.emitExpr(expr.args[0]);
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = call %str* @vks_get_env(${arg.type} ${arg.reg})`);
+            return { reg, type: "%str*" };
+        }
+        if (calleeName === "str_split") {
+            const arg1 = this.emitExpr(expr.args[0]);
+            const arg2 = this.emitExpr(expr.args[1]);
+            
+            const ptr1 = this.fresh();
+            this.out.push(`  ${ptr1} = extractvalue %str ${arg1.reg}, 0`);
+            const len1 = this.fresh();
+            this.out.push(`  ${len1} = extractvalue %str ${arg1.reg}, 1`);
+            
+            const ptr2 = this.fresh();
+            this.out.push(`  ${ptr2} = extractvalue %str ${arg2.reg}, 0`);
+            const len2 = this.fresh();
+            this.out.push(`  ${len2} = extractvalue %str ${arg2.reg}, 1`);
+            
+            const ptrReg = this.fresh();
+            this.out.push(`  ${ptrReg} = call %array_str* @vks_str_split(i8* ${ptr1}, i64 ${len1}, i8* ${ptr2}, i64 ${len2})`);
+            
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = load %array_str, %array_str* ${ptrReg}`);
+            
+            const ptrI8 = this.fresh();
+            this.out.push(`  ${ptrI8} = bitcast %array_str* ${ptrReg} to i8*`);
+            this.out.push(`  call void @free(i8* ${ptrI8})`);
+            
+            return { reg, type: "%array_str" };
+        }
+        if (calleeName === "str_replace") {
+            const arg1 = this.emitExpr(expr.args[0]);
+            const arg2 = this.emitExpr(expr.args[1]);
+            const arg3 = this.emitExpr(expr.args[2]);
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = call %str @vks_str_replace(${arg1.type} ${arg1.reg}, ${arg2.type} ${arg2.reg}, ${arg3.type} ${arg3.reg})`);
+            return { reg, type: "%str" };
+        }
+        if (calleeName === "free_str_array") {
+            const arg = this.emitExpr(expr.args[0]);
+            this.out.push(`  call void @vks_free_str_array(${arg.type} ${arg.reg})`);
+            return { reg: "0", type: "void" };
+        }
+        if (calleeName === "tcp_connect") {
+            const arg1 = this.emitExpr(expr.args[0]);
+            const arg2 = this.emitExpr(expr.args[1]);
+            
+            const ptrReg = this.fresh();
+            this.out.push(`  ${ptrReg} = extractvalue %str ${arg1.reg}, 0`);
+            const lenReg = this.fresh();
+            this.out.push(`  ${lenReg} = extractvalue %str ${arg1.reg}, 1`);
+            
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = call i8* @vks_tcp_connect(i8* ${ptrReg}, i64 ${lenReg}, ${arg2.type} ${arg2.reg})`);
+            return { reg, type: "i8*" };
+        }
+        if (calleeName === "socket_send") {
+            const arg1 = this.emitExpr(expr.args[0]);
+            const arg2 = this.emitExpr(expr.args[1]);
+            
+            const ptrReg = this.fresh();
+            this.out.push(`  ${ptrReg} = extractvalue %str ${arg2.reg}, 0`);
+            const lenReg = this.fresh();
+            this.out.push(`  ${lenReg} = extractvalue %str ${arg2.reg}, 1`);
+            
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = call i32 @vks_socket_send(${arg1.type} ${arg1.reg}, i8* ${ptrReg}, i64 ${lenReg})`);
+            return { reg, type: "i32" };
+        }
+        if (calleeName === "socket_recv") {
+            const arg1 = this.emitExpr(expr.args[0]);
+            const ptr = this.fresh();
+            this.out.push(`  ${ptr} = call %str* @vks_socket_recv_all(${arg1.type} ${arg1.reg})`);
+            const reg = this.fresh();
+            this.out.push(`  ${reg} = load %str, %str* ${ptr}`);
+            
+            const ptrI8 = this.fresh();
+            this.out.push(`  ${ptrI8} = bitcast %str* ${ptr} to i8*`);
+            this.out.push(`  call void @free(i8* ${ptrI8})`);
+            
+            return { reg, type: "%str" };
+        }
+        if (calleeName === "socket_close") {
+            const arg1 = this.emitExpr(expr.args[0]);
+            this.out.push(`  call void @vks_socket_close(${arg1.type} ${arg1.reg})`);
+            return { reg: "0", type: "void" };
+        }
 
         const args = expr.args.map(a => this.emitExpr(a));
         const argList = args.map(a => `${a.type} ${a.reg}`).join(", ");
@@ -835,7 +1022,8 @@ export class LLVMEmitter {
         
         const structName = this.lookupStructName(arrayType);
         // We know it's a dynamic array if it matches array_T
-        const elemType = structName.replace("array_", "");
+        let elemType = structName.replace("array_", "");
+        if (!["i8","i16","i32","i64","float","double","i1"].includes(elemType)) elemType = "%" + elemType;
         
         const reg = this.fresh("arr");
         this.out.push(`  ${reg} = alloca %${structName}`);
@@ -898,6 +1086,70 @@ export class LLVMEmitter {
         const reg = this.fresh();
         this.out.push(`  ${reg} = load ${valType}, ${lval.type} ${lval.reg}`);
         return { reg, type: valType };
+      }
+
+      case "SpawnExpr": {
+        const call = expr.call;
+        const calleeName = call.callee.kind === "Identifier" ? call.callee.name : "unknown";
+        
+        const emittedArgs = call.args.map(arg => this.emitExpr(arg));
+        let argsPtr = "null";
+        let structTypeStr = "";
+        
+        if (emittedArgs.length > 0) {
+            structTypeStr = `{ ${emittedArgs.map(a => a.type).join(", ")} }`;
+            const structSize = emittedArgs.reduce((sum, a) => sum + llvmTypeSize(a.type), 0);
+            
+            const rawMalloc = this.fresh();
+            this.out.push(`  ${rawMalloc} = call i8* @malloc(i64 ${structSize})`);
+            const typedMalloc = this.fresh();
+            this.out.push(`  ${typedMalloc} = bitcast i8* ${rawMalloc} to ${structTypeStr}*`);
+            
+            for (let i = 0; i < emittedArgs.length; i++) {
+                const fieldPtr = this.fresh();
+                this.out.push(`  ${fieldPtr} = getelementptr inbounds ${structTypeStr}, ${structTypeStr}* ${typedMalloc}, i32 0, i32 ${i}`);
+                this.out.push(`  store ${emittedArgs[i].type} ${emittedArgs[i].reg}, ${emittedArgs[i].type}* ${fieldPtr}`);
+            }
+            
+            argsPtr = rawMalloc;
+        }
+
+        const wrapperName = `@.spawn_wrapper_${calleeName}_${this.tempCount++}`;
+        
+        const tramp = [];
+        tramp.push(`define void ${wrapperName}(i8* %args_ptr) {`);
+        tramp.push(`entry:`);
+        
+        const callArgs: string[] = [];
+        if (emittedArgs.length > 0) {
+            const typedPtr = "%typed_args";
+            tramp.push(`  ${typedPtr} = bitcast i8* %args_ptr to ${structTypeStr}*`);
+            for (let i = 0; i < emittedArgs.length; i++) {
+                const fieldPtr = `%arg_ptr_${i}`;
+                tramp.push(`  ${fieldPtr} = getelementptr inbounds ${structTypeStr}, ${structTypeStr}* ${typedPtr}, i32 0, i32 ${i}`);
+                const val = `%arg_val_${i}`;
+                tramp.push(`  ${val} = load ${emittedArgs[i].type}, ${emittedArgs[i].type}* ${fieldPtr}`);
+                callArgs.push(`${emittedArgs[i].type} ${val}`);
+            }
+            tramp.push(`  call void @free(i8* %args_ptr)`);
+        }
+        
+        const retType = this.functionReturns.get(calleeName) || "void";
+        tramp.push(`  ${retType !== "void" ? "%ret = " : ""}call ${retType} @${calleeName}(${callArgs.join(", ")})`);
+        tramp.push(`  ret void`);
+        tramp.push(`}`);
+        tramp.push("");
+        
+        this.trampolines.push(tramp.join("\n"));
+        
+        const threadReg = this.fresh();
+        this.out.push(`  ${threadReg} = call i8* @vks_spawn(i8* bitcast (void (i8*)* ${wrapperName} to i8*), i8* ${argsPtr})`);
+        
+        return { reg: threadReg, type: "i8*" };
+      }
+
+      case "NullLiteral": {
+        return { reg: "null", type: "i8*" };
       }
 
       default:

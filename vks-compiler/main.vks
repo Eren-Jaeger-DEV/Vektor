@@ -19,8 +19,12 @@ function compile_file_with_imports(file_path: str) -> ASTNode {
   let curr_import: ASTNode = ast.left;
   while (curr_import != null) {
     let imported_path: str = curr_import.str_val;
-    if (not (charAt(imported_path, 0) == "s" and charAt(imported_path, 1) == "t" and charAt(imported_path, 2) == "d")) {
+    if (imported_path == "lexer.vks" or imported_path == "parser.vks" or imported_path == "ast.vks"
+        or imported_path == "compiler.vks" or imported_path == "opcodes.vks" or imported_path == "tokens.vks" 
+        or imported_path == "serializer.vks") {
       imported_path = "vks-compiler/" + imported_path;
+    } else {
+      imported_path = resolve_import(file_path, imported_path);
     }
       let imported_ast: ASTNode = compile_file_with_imports(imported_path);
       

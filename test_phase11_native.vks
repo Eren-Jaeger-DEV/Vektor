@@ -1,0 +1,50 @@
+fn main() {
+    print("--- Test get_env ---");
+    let missing_env: str? = get_env("MISSING_VAR_XYZ");
+    if missing_env == null {
+        print("MISSING_VAR_XYZ is null as expected");
+    } else {
+        print("ERROR: missing_env was not null");
+    }
+
+    print("--- Test str_replace ---");
+    let orig: str = "hello world world";
+    let replaced: str = str_replace(orig, "world", "viktor");
+    print("Replaced:", replaced); // should be "hello viktor viktor"
+    
+    // We would manually free `replaced` here, but currently `free(ptr)` takes `i8*`, and `str` is a struct.
+    // In VKS, if we don't free, memory just leaks. Since this is a test, leaking a small string is fine.
+
+    print("--- Test str_split ---");
+    let csv: str = "apple,banana,orange";
+    let fruits: str[] = str_split(csv, ",");
+    
+    let num_fruits: i32 = array_length(fruits);
+    print("Num fruits:", num_fruits); // should be 3
+    
+    let i: i32 = 0;
+    while i < num_fruits {
+        print("Fruit:", fruits[i]);
+        i++;
+    }
+    
+    // Clean up dynamic string array and its internal buffers
+    free_str_array(fruits);
+    print("Freed string array.");
+
+    print("--- Test get_args ---");
+    let args: str[] = get_args();
+    let num_args: i32 = array_length(args);
+    print("Num args:", num_args);
+    
+    let j: i32 = 0;
+    while j < num_args {
+        print("Arg:", args[j]);
+        j++;
+    }
+    
+    free_str_array(args);
+    print("Freed args array.");
+    
+    print("All Phase 11 native tests finished.");
+}
