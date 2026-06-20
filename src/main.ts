@@ -9,6 +9,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
+import * as os from "os";
 import { fileURLToPath } from "url";
 import { Disassembler } from "./disassembler.js";
 import { resolveImportPath } from "./stdlib.js";
@@ -69,6 +70,7 @@ if (args.length === 0) {
   console.log("  --exec           Execute a pre-compiled binary file (.vkb)");
   console.log("  --time           Measure and display execution time");
   console.log("  --llvm           Compile the program to LLVM IR (.ll)");
+  console.log("  --target <arch>  Specify LLVM target triple (e.g. x86_64-w64-mingw32)");
   process.exit(0);
 }
 
@@ -87,6 +89,24 @@ let outputFile: string | null = null;
 const oIndex = args.indexOf("-o");
 if (oIndex !== -1 && oIndex + 1 < args.length) {
   outputFile = args[oIndex + 1];
+}
+
+function detectTargetTriple(): string {
+  const platform = os.platform();
+  const arch = process.arch;
+
+  if (platform === "win32") return "x86_64-w64-mingw32";
+  if (platform === "linux") return "x86_64-unknown-linux-gnu";
+  if (platform === "darwin") {
+    return arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
+  }
+  throw new Error(`Unsupported platform: ${platform}`);
+}
+
+let targetTriple: string = detectTargetTriple();
+const targetIndex = args.indexOf("--target");
+if (targetIndex !== -1 && targetIndex + 1 < args.length) {
+  targetTriple = args[targetIndex + 1];
 }
 
 if (!filePath) {
@@ -329,7 +349,7 @@ else {
       console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
       console.log("");
 
-      const emitter = new LLVMEmitter();
+      const emitter = new LLVMEmitter(targetTriple);
       const llvmIR = emitter.emit(monoProgram);
       const outPath = outputFile || resolvedPath.replace(/\.vks$/, ".ll");
       writeFileSync(outPath, llvmIR);

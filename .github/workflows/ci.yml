@@ -1,0 +1,64 @@
+name: Cross-Platform Native CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Native Compile & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Bootstrapping Compiler (Compile test_http.vks to LLVM IR)
+      run: npx tsx src/main.ts test_http.vks --llvm
+
+    - name: Compile Native Binary (Linux / macOS)
+      if: runner.os != 'Windows'
+      run: clang test_http.ll runtime.c -o test_http -pthread
+
+    - name: Compile Native Binary (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        $env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;" + $env:PATH
+        clang test_http.ll runtime.c -o test_http.exe -lws2_32 -target x86_64-w64-mingw32 --sysroot C:\msys64\mingw64
+
+    - name: Run Native Binary and Verify Output (Linux / macOS)
+      if: runner.os != 'Windows'
+      run: |
+        output=$(./test_http || true)
+        echo "$output"
+        if echo "$output" | grep -q "HTTP/1.1 200"; then
+          echo "Success: HTTP 200 OK found in output."
+        else
+          echo "Failure: HTTP 200 OK not found."
+          exit 1
+        fi
+
+    - name: Run Native Binary and Verify Output (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        $output = .\test_http.exe 2>&1
+        $output
+        if ($output -match "HTTP/1.1 200") {
+          Write-Host "Success: HTTP 200 OK found in output."
+        } else {
+          Write-Host "Failure: HTTP 200 OK not found."
+          exit 1
+        }
+        exit 0

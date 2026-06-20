@@ -1,5 +1,16 @@
+#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#define SOCKET int
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+#define closesocket close
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -65,7 +76,7 @@ void vks_panic(const char* msg) {
 #if defined(_WIN32)
 #include "thread_win.c"
 #else
-// Future: #include "thread_posix.c"
+#include "thread_posix.c"
 #endif
 
 void* vks_spawn(void* wrapper_fn, void* packed_args) {
@@ -114,16 +125,20 @@ int main(int argc, char** argv) {
     vks_argc = argc;
     vks_argv = argv;
     
-    // Winsock Lifecycle
+    // Winsock Lifecycle (Windows only)
+#if defined(_WIN32)
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         fprintf(stderr, "WSAStartup failed.\n");
         return 1;
     }
+#endif
     
     vks_main();
     
+#if defined(_WIN32)
     WSACleanup();
+#endif
     return 0;
 }
 
