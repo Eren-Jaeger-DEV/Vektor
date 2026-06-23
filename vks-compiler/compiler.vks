@@ -187,6 +187,21 @@ function compiler_add_local(c: Compiler, name: str, is_const: bool) {
     print("Too many local variables in function.");
     exit(1);
   }
+  
+  let curr: Local = c.locals_head;
+  let loop: bool = true;
+  while (loop and curr != null) {
+    if (curr.depth != c.scope_depth) {
+      loop = false; // We only care about the current scope
+    } else {
+      if (curr.name == name) {
+        print("Compile error: Identifier '" + name + "' has already been declared");
+        exit(1);
+      }
+      curr = curr.next;
+    }
+  }
+  
   let l: Local = Local { name: name, depth: c.scope_depth, is_const: is_const, next: c.locals_head };
   c.locals_head = l;
   c.locals_count = c.locals_count + 1;
@@ -204,6 +219,18 @@ function compiler_resolve_local(c: Compiler, name: str) -> i32 {
     idx = idx - 1;
   }
   return -1;
+}
+
+function compiler_is_local_const(c: Compiler, name: str) -> bool {
+  let curr: Local = c.locals_head;
+  let loop: bool = true;
+  while (loop and curr != null) {
+    if (curr.name == name) {
+      return curr.is_const;
+    }
+    curr = curr.next;
+  }
+  return false;
 }
 
 // ── Compiler Core ──────────────────────────────────────────
@@ -284,6 +311,10 @@ function compile_expression(c: Compiler, node: ASTNode) {
     }
   } else if (kind == "AssignmentExpr") {
     if (node.left.kind == "Identifier") {
+      if (compiler_is_local_const(c, node.left.name)) {
+        print("Compile error: Cannot assign to constant variable '" + node.left.name + "'");
+        exit(1);
+      }
       compile_expression(c, node.right);
       let slot: i32 = compiler_resolve_local(c, node.left.name);
       if (slot != -1) {
@@ -307,16 +338,20 @@ function compile_expression(c: Compiler, node: ASTNode) {
       compile_expression(c, node.left.index);
       compile_expression(c, node.right);
       emit_op(c, OP_SET_INDEX, node.line);
-    } else if (node.left.kind == "DerefExpr") {
+    } else if (node.left.kind == "UnaryExpr" and node.left.op == "*") {
       compile_expression(c, node.left.right); // pointer
       compile_expression(c, node.right); // value
       emit_op(c, OP_DEREF_SET, node.line);
     } else {
-      print("Invalid assignment target");
+      print("Compiler error: Invalid assignment target. Left kind: ", node.left.kind, " op: ", node.left.op);
       exit(1);
     }
   } else if (kind == "PostfixExpr") {
     if (node.left.kind == "Identifier") {
+      if (compiler_is_local_const(c, node.left.name)) {
+        print("Compile error: Cannot assign to constant variable '" + node.left.name + "'");
+        exit(1);
+      }
       compile_expression(c, node.left); // push old value
       compile_expression(c, node.left); // push again
       emit_op(c, OP_CONST, node.line);
@@ -410,40 +445,7 @@ function compile_expression(c: Compiler, node: ASTNode) {
     compile_expression(c, node.object);
     compile_expression(c, node.index);
     emit_op(c, OP_GET_INDEX, node.line);
-  } else if (kind == "AssignmentExpr") {
-    if (node.left.kind == "Identifier") {
-      compile_expression(c, node.right);
-      let slot: i32 = compiler_resolve_local(c, node.left.name);
-      if (slot != -1) {
-        emit_op(c, OP_DUP, node.line);
-        emit_op(c, OP_STORE_LOCAL, node.line);
-        emit_byte(c, (slot / 256), node.line);
-        emit_byte(c, (slot % 256), node.line);
-      } else {
-        let const_val: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.name, fn_index: 0, next: null };
-        let idx: i32 = chunk_add_constant(c.chunk, const_val);
-        emit_op(c, OP_DUP, node.line);
-        emit_op(c, OP_STORE_GLOBAL, node.line);
-        emit_u16(c, idx, node.line);
-      }
-    } else if (node.left.kind == "IndexAccessExpr") {
-      compile_expression(c, node.left.object);
-      compile_expression(c, node.left.index);
-      compile_expression(c, node.right);
-      // Wait, TS compiler logic:
-      // SET_INDEX takes array, index, value. It pops value, pops index, pops array, pushes value.
-      // So order is Object, Index, Value. That is what we did!
-      emit_op(c, OP_SET_INDEX, node.line);
-    } else if (node.left.kind == "FieldAccessExpr") {
-      compile_expression(c, node.left.object);
-      compile_expression(c, node.right);
-      let field_name: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: node.left.property, fn_index: 0, next: null };
-      let name_idx: i32 = chunk_add_constant(c.chunk, field_name);
-      emit_op(c, OP_SET_FIELD, node.line);
-      emit_u16(c, name_idx, node.line);
-    } else {
-      print("Compiler error: Invalid assignment target");
-    }
+
   } else if (kind == "AllocExpr") {
     compile_expression(c, node.left); // Using left for value
     emit_op(c, OP_ALLOC, node.line);
@@ -455,9 +457,27 @@ function compile_expression(c: Compiler, node: ASTNode) {
     emit_op(c, OP_CAST, node.line);
     emit_byte(c, node.int_val, node.line); // Assuming int_val holds typeId
   } else if (kind == "UnaryExpr") {
-    compile_expression(c, node.right);
-    if (node.op == "-") { emit_op(c, OP_NEG, node.line); }
-    else if (node.op == "!" or node.op == "not") { emit_op(c, OP_NOT, node.line); }
+    if (node.op == "&") {
+      if (node.right.kind != "Identifier") {
+        print("Compile error: Cannot take address of non-identifier");
+        exit(1);
+      }
+      let slot: i32 = compiler_resolve_local(c, node.right.name);
+      if (slot == -1) {
+        print("Compile error: Cannot take address of global variable yet");
+        exit(1);
+      }
+      emit_op(c, OP_ADDR_OF, node.line);
+      emit_byte(c, (slot / 256), node.line);
+      emit_byte(c, (slot % 256), node.line);
+    } else if (node.op == "*") {
+      compile_expression(c, node.right);
+      emit_op(c, OP_DEREF, node.line);
+    } else {
+      compile_expression(c, node.right);
+      if (node.op == "-") { emit_op(c, OP_NEG, node.line); }
+      else if (node.op == "!" or node.op == "not") { emit_op(c, OP_NOT, node.line); }
+    }
   } else {
     print("Unknown AST node kind in compile_expression:", kind);
     exit(1);

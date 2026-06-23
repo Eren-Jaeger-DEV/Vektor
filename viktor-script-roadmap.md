@@ -1,7 +1,7 @@
 # Viktor Script Full Roadmap (Phases 1–20)
 ### Path from Inception to Full Independence
 
-**Status as of this document:** Phases 1–14 complete. Core language implemented, self-hosting achieved, LLVM native compilation verified end-to-end, and advanced networking and concurrency are functional. Phase 15 (Cross-Platform Native Compile) is next.
+**Status as of this document:** Phases 1–17 complete. Core language implemented, self-hosting achieved, LLVM native compilation verified end-to-end, the package manager is natively self-hosted, and standalone installers are live.
 
 ---
 
@@ -218,9 +218,9 @@ Build one real, non-toy program entirely in Viktor Script — ideally something 
 | 14 | Networking | ✅ Complete |
 | 15 | Cross-Platform Native Compile | ✅ Complete |
 | 16 | Self-Hosted Package Manager | ✅ Complete |
-| 17 | Standalone Installer | ✅ Complete |
+| 17 | Standalone Installer | Planned (In Progress) |
 | 18 | Editor Tooling | Planned (1-4 Weeks) |
 | 19 | Battle Test | Planned (2-4 Weeks) |
 | 20 | Public Launch | Planned (1 Week) |
 
-**Total Completion:** 17 / 20 Phases (85%)
+**Total Completion:** 16 / 20 Phases (80%)

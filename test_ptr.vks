@@ -1,0 +1,15 @@
+import "io.vks";
+
+function main() {
+  let a: i32 = 42;
+  let p: ptr<i32> = &a;
+  print("ptr deref:", *p);
+  *p = 100;
+  print("a after mut:", a);
+
+  let heap_ptr: ptr<i32> = alloc(4); // alloc takes size in bytes maybe? Or wait, how does alloc work?
+  *heap_ptr = 999;
+  print("heap deref:", *heap_ptr);
+  free(heap_ptr);
+  print("freed cleanly");
+}

@@ -1,0 +1,51 @@
+import "math.vks";
+import "string.vks";
+import "io.vks";
+
+// Deep Recursion
+function fibonacci(n: i32) -> i32 {
+  if (n <= 1) { return n; }
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Memory Allocation & Loops
+function array_stress(limit: i32) -> i32 {
+  let arr: i32[] = array_new();
+  for (let i: i32 = 0; i < limit; i++) {
+    array_push(arr, i * 2);
+  }
+  
+  let sum: i32 = 0;
+  for (let j: i32 = 0; j < array_length(arr); j++) {
+    sum = sum + arr[j];
+  }
+  return sum;
+}
+
+// Floating point logic
+function calculate_hypotenuse(x: f64, y: f64) -> f64 {
+  return sqrt(x * x + y * y);
+}
+
+function main() {
+  print("=== Viktor Script Stress Test ===");
+  
+  // Test 1: Fibonacci Recursion
+  let fib_val: i32 = fibonacci(25);
+  print("Fibonacci(25) =", fib_val);
+  
+  // Test 2: Array allocations and loops
+  let array_sum: i32 = array_stress(1000);
+  print("Array Sum(1000) =", array_sum);
+  
+  // Test 3: Math
+  let dist: f64 = calculate_hypotenuse(3.0, 4.0);
+  print("Hypotenuse of 3 and 4 =", dist);
+  
+  // Test 4: String manipulations
+  let s: str = "ViktorScript is fast";
+  let replaced: str = str_replace(s, "fast", "blazing fast");
+  print("String Manip:", replaced);
+  
+  print("=== Stress Test Completed Successfully ===");
+}

@@ -1,0 +1,83 @@
+name: Release VKS Compiler
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    name: Build Native Release on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: vks-linux-x64
+            archive_ext: .tar.gz
+          - os: macos-latest
+            artifact_name: vks-macos-x64
+            archive_ext: .tar.gz
+          - os: windows-latest
+            artifact_name: vks-windows-x64
+            archive_ext: .zip
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Install Clang (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
+        pacman -Sy --noconfirm mingw-w64-x86_64-clang mingw-w64-x86_64-headers mingw-w64-x86_64-crt
+
+    - name: Bootstrap Compiler to LLVM IR
+      run: npx tsx src/main.ts compile vks-compiler/main.vks -o vks.ll
+
+    - name: Compile Native Binary (Linux / macOS)
+      if: runner.os != 'Windows'
+      run: clang -O3 vks.ll src/runtime.c src/vks_runtime_ext.c -o vks -pthread
+
+    - name: Compile Native Binary (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        $env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
+        clang -O3 vks.ll src/runtime.c src/vks_runtime_ext.c -o vks.exe -lws2_32 -target x86_64-w64-mingw32
+
+    - name: Package Release
+      shell: bash
+      run: |
+        mkdir -p dist/bin dist/lib dist/stdlib
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          cp vks.exe dist/bin/
+        else
+          cp vks dist/bin/
+        fi
+        cp src/runtime.c dist/lib/
+        cp src/vks_runtime_ext.c dist/lib/
+        if [ -d "stdlib" ]; then
+          cp -r stdlib/* dist/stdlib/ || true
+        fi
+        
+        cd dist
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          7z a ../${{ matrix.artifact_name }}${{ matrix.archive_ext }} .
+        else
+          tar -czf ../${{ matrix.artifact_name }}${{ matrix.archive_ext }} .
+        fi
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ matrix.artifact_name }}${{ matrix.archive_ext }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

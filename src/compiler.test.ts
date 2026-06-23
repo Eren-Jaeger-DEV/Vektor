@@ -29,7 +29,7 @@ function compileVKS(source: string, tempVksPath: string, tempVkbPath: string) {
   const compilerProg = serializer.deserialize(compilerBuffer);
 
   // Set the args for the compiler
-  (global as any).__vks_args = [tempVksPath, tempVkbPath];
+  (global as any).__vks_args = ["compile", tempVksPath, "-o", tempVkbPath];
 
   // Run the compiler in the VM
   const vmCompile = new VM();

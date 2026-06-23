@@ -350,6 +350,10 @@ export class VM {
           // The callee object itself is right before the arguments.
           const basePointer = this.stack.length - argCount;
           
+          if (this.frames.length >= 10000) {
+             throw new RuntimeError("Maximum call stack size exceeded (Stack overflow).", line);
+          }
+
           this.frames.push(new CallFrame(targetFn, basePointer));
           
           // Update local loop variables for the new frame
@@ -564,7 +568,30 @@ export class VM {
           break;
         }
         case Op.DEREF_SET: {
-           throw new Error("DEREF_SET not fully implemented. Usually this would pop a value and a pointer.");
+           const val = this.pop();
+           const ptr = this.pop();
+           
+           if (!(ptr instanceof VMPointer)) {
+             throw new RuntimeError("Cannot dereference non-pointer for assignment.", line);
+           }
+           
+           if (ptr.address <= 0) {
+             // Stack pointer
+             this.stack[-ptr.address] = val;
+           } else {
+             // Heap pointer
+             if (!this.heap.has(ptr.address)) {
+               throw new RuntimeError(`Dereferencing freed or invalid pointer (addr: ${ptr.address})`, line);
+             }
+             const block = this.heap.get(ptr.address);
+             if (isHeapBlock(block)) {
+               block.data[0] = val;
+             } else {
+               this.heap.set(ptr.address, val);
+             }
+           }
+           this.push(val); // Assignment expressions evaluate to the assigned value
+           break;
         }
         case Op.CAST: {
           const typeIdx = (code[frame.ip] << 8) | code[frame.ip + 1];

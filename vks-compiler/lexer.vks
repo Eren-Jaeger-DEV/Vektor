@@ -112,14 +112,10 @@ function skip_whitespace(l: Lexer) {
 }
 
 function tokenize(source: str) -> Token {
-  print("tokenize: lexer_new");
   let l: Lexer = lexer_new(source);
   let parsing: bool = true;
-  print("tokenize: before while");
   while (parsing and not is_at_end(l)) {
-    print("tokenize: inside while");
     skip_whitespace(l);
-    print("tokenize: after skip_whitespace");
     if (is_at_end(l)) {
       parsing = false;
     } else {

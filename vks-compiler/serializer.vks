@@ -141,5 +141,4 @@ function serialize_compiler(c: Compiler, path: str) {
   array_push_str(buf, "<script>");
 
   let result: bool = write_binary(path, buf);
-  print("Wrote compiler to " + path + " with " + toString(array_length(buf)) + " bytes. Success: " + toString(result));
 }

@@ -1,0 +1,3 @@
+function main() {
+  print("Hello from the new vks build system!");
+}

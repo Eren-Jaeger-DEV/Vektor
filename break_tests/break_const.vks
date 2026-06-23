@@ -1,0 +1,5 @@
+function main() {
+  const PI: f64 = 3.14159;
+  PI = 4.0; // This should throw a compile error!
+  print("PI is now:", PI);
+}

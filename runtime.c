@@ -159,6 +159,15 @@ vks_array_str vks_get_args() {
     return arr;
 }
 
+int32_t vks_system(vks_string cmd) {
+    char* cmd_cstr = (char*)malloc(cmd.len + 1);
+    memcpy(cmd_cstr, cmd.data, cmd.len);
+    cmd_cstr[cmd.len] = '\0';
+    int result = system(cmd_cstr);
+    free(cmd_cstr);
+    return result;
+}
+
 char* vks_get_env(vks_string name) {
     char* name_cstr = (char*)malloc(name.len + 1);
     memcpy(name_cstr, name.data, name.len);

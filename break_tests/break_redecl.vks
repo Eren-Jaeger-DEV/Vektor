@@ -1,0 +1,5 @@
+function main() {
+  let x: i32 = 10;
+  let x: i32 = 20; // This should throw a compile error now!
+  print(x);
+}

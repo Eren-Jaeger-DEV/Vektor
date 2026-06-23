@@ -20,7 +20,7 @@ export function compileToVM(source: string) {
   const serializer = new Serializer();
   const compilerProg = serializer.deserialize(compilerBuffer);
 
-  (global as any).__vks_args = [vksPath, vkbPath];
+  (global as any).__vks_args = ["compile", vksPath, "-o", vkbPath];
   const vmCompile = new VM();
   
   try {

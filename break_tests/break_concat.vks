@@ -1,0 +1,11 @@
+
+import "string.vks";
+import "io.vks";
+
+function main() {
+  let s: str = "A";
+  for(let i: i32 = 0; i < 5000; i++) {
+    s = s + "A";
+  }
+  print(s);
+}

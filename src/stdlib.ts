@@ -119,6 +119,7 @@ export const BUILTIN_SPECS: BuiltinSpec[] = [
   { name: "shell_exec",     module: "sys.vks", arity: 1 },
   { name: "parse_json",     module: "sys.vks", arity: 1 },
   { name: "stringify_json", module: "sys.vks", arity: 1 },
+  { name: "system",         module: "sys.vks", arity: 1 },
   // math
   { name: "sqrt",       module: "math.vks",   arity: 1 },
   { name: "pow",        module: "math.vks",   arity: 2 },
@@ -643,15 +644,12 @@ export function registerVMBuiltins(
     } catch { return []; }
   });
 
-  define("shell_exec", 1, (cmd) => {
+  define("system", 1, (cmd) => {
     try {
-      if (typeof cmd === "string") {
-        execSync(cmd, { stdio: "inherit" });
-        return 0;
-      }
-      return 1;
+      execSync(cmd, { stdio: "inherit" });
+      return 0;
     } catch (e: any) {
-      return e.status ?? 1;
+      return e.status || 1;
     }
   });
 

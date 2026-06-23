@@ -211,7 +211,7 @@ function parse_prefix(p: Parser) -> ASTNode {
     node.args = elements_head;
     return node;
   }
-  if (type == TOKEN_MINUS or type == TOKEN_BANG or type == TOKEN_NOT or type == TOKEN_STAR or type == TOKEN_AMPERSAND) {
+  if (type == TOKEN_MINUS or type == TOKEN_BANG or type == TOKEN_NOT or type == TOKEN_STAR or type == TOKEN_AND) {
     let node: ASTNode = ast_node_new("UnaryExpr", token.line, token.column);
     node.op = token.lexeme;
     node.right = parse_expression(p, PREC_UNARY);
