@@ -1,3 +1,5 @@
+import "io.vks";
+
 struct Box<T> {
   value: T;
 }
@@ -7,6 +9,14 @@ fn identity<T>(x: T) -> T {
 }
 
 fn main() {
-  let a: Box<i32> = Box<i32> { value: 5 };
-  let b: str = identity<str>("hello");
+  let a: Box<i32> = Box<i32> { value: 42 };
+  print("Box<i32>:", a.value);
+
+  let b: Box<str> = Box<str> { value: "hello generics" };
+  print("Box<str>:", b.value);
+
+  let nested: Box<Box<i32>> = Box<Box<i32>> { 
+    value: Box<i32> { value: 999 } 
+  };
+  print("Nested Box<Box<i32>>:", nested.value.value);
 }

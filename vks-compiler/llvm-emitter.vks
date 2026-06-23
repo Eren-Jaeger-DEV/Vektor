@@ -336,9 +336,9 @@ function emit_lvalue(emitter: LLVMEmitter, expr: ASTNode) -> EmitResult {
   }
 
   if (expr.kind == "FieldAccessExpr") {
-    let lval: EmitResult = emit_lvalue(emitter, expr.left);
+    let lval: EmitResult = emit_lvalue(emitter, expr.object);
     let struct_name: str = lookup_struct_name(lval.type);
-    let field: StructFieldEntry = resolve_field(emitter, struct_name, expr.right.name);
+    let field: StructFieldEntry = resolve_field(emitter, struct_name, expr.property);
     if (field == null) { return EmitResult { reg: "0", type: "i32*" }; }
     
     let field_ptr: str = next_temp(emitter);
@@ -347,7 +347,7 @@ function emit_lvalue(emitter: LLVMEmitter, expr: ASTNode) -> EmitResult {
   }
 
   if (expr.kind == "IndexAccessExpr") {
-    let lval: EmitResult = emit_lvalue(emitter, expr.left);
+    let lval: EmitResult = emit_lvalue(emitter, expr.object);
     let struct_name: str = lookup_struct_name(lval.type);
     let elem_type: str = substring(struct_name, 6, str_length(struct_name)); // remove "array_"
     
@@ -484,7 +484,7 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
       
       let field_ptr: str = next_temp(emitter);
       emit_line(emitter, "  " + field_ptr + " = getelementptr inbounds %" + struct_name + ", %" + struct_name + "* " + reg + ", i32 0, i32 " + toString(field_entry.index));
-      let val: EmitResult = emit_expr(emitter, curr_f.value, null);
+      let val: EmitResult = emit_expr(emitter, curr_f.right, null);
       emit_line(emitter, "  store " + field_entry.type + " " + val.reg + ", " + field_entry.type + "* " + field_ptr);
       
       curr_f = curr_f.next;
@@ -495,13 +495,9 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
     return EmitResult { reg: val_reg, type: "%" + struct_name };
   }
 
-  if (expr.kind == "Identifier") {
+  if (expr.kind == "Identifier" or expr.kind == "FieldAccessExpr" or expr.kind == "IndexAccessExpr") {
     let lval: EmitResult = emit_lvalue(emitter, expr);
-    // remove * from lval.type
-    // A primitive slice hack: assuming we just remove the last char if it's '*'
-    // We can't slice strings easily in self-hosted, so we'll just resolve from scope
-    let val_type: str = scope_resolve(emitter.current_scope, expr.name);
-    if (val_type == null) { val_type = "i32"; }
+    let val_type: str = substring(lval.type, 0, str_length(lval.type) - 1);
     let reg: str = next_temp(emitter);
     emit_line(emitter, "  " + reg + " = load " + val_type + ", " + lval.type + " " + lval.reg);
     return EmitResult { reg: reg, type: val_type };
@@ -1141,7 +1137,33 @@ function emit_function(emitter: LLVMEmitter, func_node: ASTNode) -> void {
 function emit_program(program: ASTNode, target_triple: str) -> str {
   let emitter: LLVMEmitter = llvm_emitter_new(target_triple);
   
-  // First pass: define struct types (we skip for batch 1 to keep it simple, but we can do it if needed)
+  // First pass: define struct types
+  let curr_struct: ASTNode = program.right;
+  while (curr_struct != null) {
+    if (curr_struct.kind == "StructDecl") {
+      let struct_name: str = curr_struct.name;
+      let llvm_struct_name: str = "%" + struct_name;
+      let layout: StructLayoutEntry = add_struct_layout(emitter, struct_name, llvm_struct_name);
+      
+      let fields_str: str = "";
+      let field_idx: i32 = 0;
+      let curr_f: ASTNode = curr_struct.fields;
+      while (curr_f != null) {
+        let field_type: str = vks_type_to_llvm(curr_f.returnType);
+        add_struct_field(layout, curr_f.name, field_type, field_idx);
+        
+        if (field_idx > 0) { fields_str = fields_str + ", "; }
+        fields_str = fields_str + field_type;
+        
+        field_idx = field_idx + 1;
+        curr_f = curr_f.next;
+      }
+      
+      emit_line(emitter, llvm_struct_name + " = type { " + fields_str + " }");
+    }
+    curr_struct = curr_struct.next;
+  }
+  
   // Second pass: define function signatures
   let curr_decl: ASTNode = program.right;
   while (curr_decl != null) {
