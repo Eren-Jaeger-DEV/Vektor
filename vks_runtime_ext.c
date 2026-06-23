@@ -136,11 +136,11 @@ int str_length(vks_string s) {
     return (int)s.len;
 }
 
-int str_length_ffi(vks_string* s) {
-    printf("[DEBUG] str_length_ffi called with ptr=%p\n", s);
+int str_length_ffi(vks_string s) {
+    printf("[DEBUG] str_length_ffi called with ptr=%p\n", s.data);
     fflush(stdout);
-    if (!s) return 0;
-    int len = (int)s->len;
+    if (!s.data) return 0;
+    int len = (int)s.len;
     printf("[DEBUG] str_length_ffi returning %d\n", len);
     fflush(stdout);
     return len;
