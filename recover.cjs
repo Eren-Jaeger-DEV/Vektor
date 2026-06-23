@@ -1,0 +1,64 @@
+const fs = require('fs');
+
+const logFile1 = 'C:\\Users\\HP\\.gemini\\antigravity-ide\\brain\\37bee034-c0ee-40bd-b90d-95c1327b5d6d\\.system_generated\\logs\\transcript.jsonl';
+const logFile2 = 'C:\\Users\\HP\\.gemini\\antigravity-ide\\brain\\f8b7f3ed-1193-4971-a23a-b058ef7b5b3f\\.system_generated\\logs\\transcript.jsonl';
+
+let currentContent = "";
+
+function processLog(logFile) {
+    if (!fs.existsSync(logFile)) return;
+    const lines = fs.readFileSync(logFile, 'utf8').split('\n');
+    for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+            const entry = JSON.parse(line);
+            if (entry.type === 'PLANNER_RESPONSE' && entry.tool_calls) {
+                for (const call of entry.tool_calls) {
+                    if (!call.args.TargetFile || !call.args.TargetFile.toLowerCase().includes('llvm-emitter.vks')) continue;
+                    
+                    if (call.name === 'write_to_file') {
+                        if (call.args.Overwrite === "true" || currentContent === "") {
+                            currentContent = call.args.CodeContent;
+                            console.log(`[write_to_file] Initialized/Overwritten at step ${entry.step_index}`);
+                        }
+                    } else if (call.name === 'replace_file_content') {
+                        const target = call.args.TargetContent;
+                        const replacement = call.args.ReplacementContent;
+                        if (currentContent.includes(target)) {
+                            currentContent = currentContent.replace(target, replacement);
+                        } else {
+                            console.log(`[replace_file_content] FAILED at step ${entry.step_index}`);
+                        }
+                    } else if (call.name === 'multi_replace_file_content') {
+                        for (const chunk of call.args.ReplacementChunks) {
+                            const target = chunk.TargetContent;
+                            const replacement = chunk.ReplacementContent;
+                            if (currentContent.includes(target)) {
+                                currentContent = currentContent.replace(target, replacement);
+                            } else {
+                                console.log(`[multi_replace_file_content] FAILED chunk at step ${entry.step_index}`);
+                            }
+                        }
+                    }
+                }
+            } else if (entry.type === 'PLANNER_RESPONSE' && entry.tool_calls) {
+                 for (const call of entry.tool_calls) {
+                    if (call.name === 'run_command' && call.args.CommandLine && call.args.CommandLine.includes('llvm-emitter.vks') && call.args.CommandLine.includes('-replace')) {
+                        console.log(`[run_command] Found manual replace at step ${entry.step_index}: ${call.args.CommandLine}`);
+                        if (call.args.CommandLine.includes('dbg_p1')) {
+                            // ignore the dbg inject since we want the final state without dbg
+                        }
+                    }
+                 }
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+}
+
+processLog(logFile1);
+processLog(logFile2);
+
+fs.writeFileSync('vks-compiler/llvm-emitter.vks', currentContent);
+console.log(`Recovered file written to vks-compiler/llvm-emitter.vks, length: ${currentContent.length}`);

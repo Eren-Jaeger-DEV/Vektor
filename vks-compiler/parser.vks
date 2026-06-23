@@ -18,13 +18,23 @@ struct Parser {
   current: Token;
   previous: Token;
   has_error: bool;
+  panic_mode: bool;
+  error_msg: str;
+  error_line: i32;
+  error_col: i32;
+  ast: ASTNode;
 }
 
 function parser_new(tokens: Token) -> Parser {
   return Parser {
     current: tokens,
     previous: null,
-    has_error: false
+    has_error: false,
+    panic_mode: false,
+    error_msg: "",
+    error_line: 0,
+    error_col: 0,
+    ast: null
   };
 }
 
@@ -62,13 +72,18 @@ function parser_match_token(p: Parser, type: str) -> bool {
   return false;
 }
 
+function parser_error_at(p: Parser, token: Token, message: str) {
+  if (p.panic_mode) { return; }
+  p.panic_mode = true;
+  print("Parse Error at line " + toString(token.line) + " col " + toString(token.column) + " : " + message);
+  p.has_error = true;
+}
+
 function parser_consume(p: Parser, type: str, message: str) -> Token {
   if (parser_check(p, type)) {
     return parser_advance(p);
   }
-  print("Parse Error at line", parser_peek(p).line, "col", parser_peek(p).column, ":", message);
-  p.has_error = true;
-  exit(1);
+  parser_error_at(p, parser_peek(p), message);
   return Token { type: TOKEN_UNKNOWN, lexeme: "", line: 0, column: 0, num_val: 0.0, next: null };
 }
 
@@ -257,6 +272,11 @@ function parse_prefix(p: Parser) -> ASTNode {
     node.args = resExpr;
     return node;
   }
+  if (type == TOKEN_SPAWN) {
+    let node: ASTNode = ast_node_new("SpawnExpr", token.line, token.column);
+    node.left = parse_expression(p, PREC_ASSIGNMENT);
+    return node;
+  }
 
   print("Unexpected token in expression:", token.lexeme);
   p.has_error = true;
@@ -441,6 +461,13 @@ function parse_type(p: Parser) -> ASTNode {
       newType.int_val = parseI32(sizeToken.lexeme);
       typeNode = newType;
     }
+  }
+  
+  parsing = true;
+  while (parsing and parser_match_token(p, TOKEN_STAR)) {
+    let newType: ASTNode = ast_node_new("PointerType", typeNode.line, typeNode.column);
+    newType.returnType = typeNode;
+    typeNode = newType;
   }
 
   if (parser_match_token(p, TOKEN_QUESTION)) {
@@ -714,7 +741,7 @@ function parse_declaration(p: Parser) -> ASTNode {
   if (parser_match_token(p, TOKEN_CONST)) {
     return parse_const_statement(p);
   }
-  print("Expected 'struct', 'function', 'fn', or 'const' declaration.");
+  print("Parse Error at line " + toString(parser_peek(p).line) + " col " + toString(parser_peek(p).column) + " : Expected 'struct', 'function', 'fn', or 'const' declaration.");
   p.has_error = true;
   exit(1);
   return ast_node_new("Unknown", parser_peek(p).line, parser_peek(p).column);
@@ -873,7 +900,8 @@ function parse_program(p: Parser) -> ASTNode {
   return node;
 }
 
-function parse(tokens: Token) -> ASTNode {
+function parse(tokens: Token) -> Parser {
   let p: Parser = parser_new(tokens);
-  return parse_program(p);
+  p.ast = parse_program(p);
+  return p;
 }

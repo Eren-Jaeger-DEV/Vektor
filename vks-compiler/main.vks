@@ -6,15 +6,26 @@ import "pkg.vks";
 import "monomorphizer.vks";
 import "llvm-emitter.vks";
 
-function compile_file_with_imports(file_path: str) -> ASTNode {
+function compile_file_with_imports(file_path: str, resolved: map<bool>) -> ASTNode {
+  if (map_has(resolved, file_path)) {
+    let empty_ast: ASTNode = ast_node_new("Program", 0, 0);
+    return empty_ast;
+  }
+  map_set(resolved, file_path, true);
+  
   let source: str = read_file(file_path);
+  print("compile_file_with_imports: read_file returned");
   if (source == null or source == "") {
     print("Failed to read file:", file_path);
     return null;
   }
+  print("compile_file_with_imports: calling tokenize");
   let tokens: Token = tokenize(source);
+  print("compile_file_with_imports: calling parse");
   
-  let ast: ASTNode = parse(tokens);
+  let p: Parser = parse(tokens);
+  print("compile_file_with_imports: parsing done");
+  let ast: ASTNode = p.ast;
   
   let merged_decls_head: ASTNode = null;
   let merged_decls_tail: ASTNode = null;
@@ -29,7 +40,7 @@ function compile_file_with_imports(file_path: str) -> ASTNode {
     } else {
       imported_path = resolve_import(file_path, imported_path);
     }
-      let imported_ast: ASTNode = compile_file_with_imports(imported_path);
+      let imported_ast: ASTNode = compile_file_with_imports(imported_path, resolved);
       
       let curr_decl: ASTNode = imported_ast.right;
       while (curr_decl != null) {
@@ -63,13 +74,19 @@ function compile_file_with_imports(file_path: str) -> ASTNode {
 }
 
 function compile_file(file_path: str) -> Compiler {
-  let ast: ASTNode = compile_file_with_imports(file_path);
+  let resolved: map<bool> = map_create();
+  let ast: ASTNode = compile_file_with_imports(file_path, resolved);
   let c: Compiler = compile(ast);
   return c;
 }
 
 function main() {
-  if (args_count() < 1) {
+  print("INSIDE VKS_MAIN!");
+  print("calling args_count...");
+  let count: i32 = args_count();
+  print("args_count returned");
+  
+  if (count < 1) {
     print("Usage: vks <command> [args...]");
     print("Commands:");
     print("  compile <target.vks> [-o output.vkb]");
@@ -78,7 +95,9 @@ function main() {
     return null;
   }
   
+  print("calling args_get...");
   let cmd: str = args_get(0);
+  print("args_get returned");
   
   if (cmd == "init") {
     init_project(".");
@@ -127,7 +146,8 @@ function main() {
       }
     }
     
-    let ast: ASTNode = compile_file_with_imports(target_file);
+    let resolved: map<bool> = map_create();
+    let ast: ASTNode = compile_file_with_imports(target_file, resolved);
     let mono_ast: ASTNode = monomorphize(ast);
     let llvm_ir: str = emit_program(mono_ast, target_triple);
     write_file(output_file, llvm_ir);
@@ -144,3 +164,4 @@ function main() {
   let c2: Compiler = compile_file(target_file_old);
   serialize_compiler(c2, output_file_old);
 }
+

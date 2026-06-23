@@ -1,0 +1,2 @@
+import "vks-compiler/lexer.vks";
+function main() {}

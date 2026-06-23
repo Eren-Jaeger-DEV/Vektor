@@ -1,0 +1,129 @@
+import "vks-compiler/lexer.vks";
+import "vks-compiler/parser.vks";
+
+function send_response(id: i32, result: map<any>) {
+  let response: map<any> = map_create();
+  map_set(response, "jsonrpc", "2.0");
+  map_set(response, "id", id);
+  map_set(response, "result", result);
+  
+  let json_str: str = stringify_json(response);
+  let len: i32 = str_len(json_str);
+  
+  print("Content-Length: " + toString(len) + "\r\n\r\n" + json_str);
+}
+
+function send_diagnostics(uri: str, error_msg: str, error_line: i32, error_col: i32) {
+  let notif: map<any> = map_create();
+  map_set(notif, "jsonrpc", "2.0");
+  map_set(notif, "method", "textDocument/publishDiagnostics");
+  
+  let params: map<any> = map_create();
+  map_set(params, "uri", uri);
+  
+  let diagnostics: map<any>[] = array_new();
+  
+  if (error_msg != "") {
+    // VS Code lines and cols are 0-indexed, our parser is 1-indexed
+    let line: i32 = error_line - 1;
+    if (line < 0) { line = 0; }
+    let col: i32 = error_col - 1;
+    if (col < 0) { col = 0; }
+    
+    let diag: map<any> = map_create();
+    map_set(diag, "message", error_msg);
+    map_set(diag, "severity", 1); // 1 = Error
+    
+    let range: map<any> = map_create();
+    let start: map<any> = map_create();
+    map_set(start, "line", line);
+    map_set(start, "character", col);
+    let end_pos: map<any> = map_create();
+    map_set(end_pos, "line", line);
+    map_set(end_pos, "character", col + 1);
+    
+    map_set(range, "start", start);
+    map_set(range, "end", end_pos);
+    map_set(diag, "range", range);
+    
+    array_push(diagnostics, diag);
+  }
+  
+  map_set(params, "diagnostics", diagnostics);
+  map_set(notif, "params", params);
+  
+  let json_str: str = stringify_json(notif);
+  let len: i32 = str_len(json_str);
+  
+  print("Content-Length: " + toString(len) + "\r\n\r\n" + json_str);
+}
+
+function handle_message(payload: map<any>) {
+  if (payload == null) { return; }
+  
+  let method: str = map_get(payload, "method");
+  
+  if (method == "initialize") {
+    let id: i32 = map_get(payload, "id");
+    let result: map<any> = map_create();
+    let caps: map<any> = map_create();
+    map_set(caps, "textDocumentSync", 1); // 1 = Full sync
+    map_set(result, "capabilities", caps);
+    send_response(id, result);
+    return;
+  }
+  
+  if (method == "textDocument/didOpen" || method == "textDocument/didChange") {
+    let params: map<any> = map_get(payload, "params");
+    let doc: map<any> = map_get(params, "textDocument");
+    let uri: str = map_get(doc, "uri");
+    
+    let text: str = "";
+    if (method == "textDocument/didOpen") {
+      text = map_get(doc, "text");
+    } else {
+      let changes: map<any>[] = map_get(params, "contentChanges");
+      if (array_length(changes) > 0) {
+        let change: map<any> = changes[0];
+        text = map_get(change, "text");
+      }
+    }
+    
+    if (text != "") {
+      let tokens: Token = tokenize(text);
+      let p: Parser = parse(tokens);
+      
+      if (p.has_error) {
+        send_diagnostics(uri, p.error_msg, p.error_line, p.error_col);
+      } else {
+        send_diagnostics(uri, "", 0, 0); // clear diagnostics
+      }
+    }
+  }
+}
+
+function main() {
+  let running: bool = true;
+  while (running) {
+    let line: str = readLine();
+    if (line == null) {
+      running = false;
+      break;
+    }
+    
+    // Read headers until empty line
+    while (line != "") {
+      line = readLine();
+      if (line == null) { running = false; break; }
+    }
+    if (!running) { break; }
+    
+    let payload_str: str = readLine();
+    if (payload_str == null) { break; }
+    
+    let payload: map<any> = parse_json(payload_str);
+    if (payload != null) {
+      handle_message(payload);
+    }
+  }
+}

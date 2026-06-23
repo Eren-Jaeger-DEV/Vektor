@@ -1,0 +1,35 @@
+{
+  "name": "vscode-vks",
+  "displayName": "ViktorScript",
+  "description": "Official language support for ViktorScript",
+  "version": "0.1.0",
+  "publisher": "vks-lang",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vks",
+        "aliases": [
+          "ViktorScript",
+          "vks"
+        ],
+        "extensions": [
+          ".vks"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vks",
+        "scopeName": "source.vks",
+        "path": "./syntaxes/vks.tmLanguage.json"
+      }
+    ]
+  }
+}

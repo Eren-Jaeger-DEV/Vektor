@@ -140,5 +140,6 @@ function serialize_compiler(c: Compiler, path: str) {
   // 4. Entry Point (the VM expects `<script>`)
   array_push_str(buf, "<script>");
 
-  write_binary(path, buf);
+  let result: bool = write_binary(path, buf);
+  print("Wrote compiler to " + path + " with " + toString(array_length(buf)) + " bytes. Success: " + toString(result));
 }

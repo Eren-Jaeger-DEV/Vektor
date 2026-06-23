@@ -36,6 +36,7 @@ const TOKEN_ERR: str = "ERR";
 const TOKEN_CLONE: str = "CLONE";
 const TOKEN_MOVE: str = "MOVE";
 const TOKEN_MAP: str = "MAP";
+const TOKEN_SPAWN: str = "SPAWN";
 
 const TOKEN_VOID: str = "VOID";
 const TOKEN_BOOL_TYPE: str = "BOOL_TYPE";
@@ -125,6 +126,7 @@ function init_keywords() -> map<str> {
   map_set(m, "clone", TOKEN_CLONE);
   map_set(m, "move", TOKEN_MOVE);
   map_set(m, "map", TOKEN_MAP);
+  map_set(m, "spawn", TOKEN_SPAWN);
   map_set(m, "void", TOKEN_VOID);
   map_set(m, "bool", TOKEN_BOOL_TYPE);
   map_set(m, "byte", TOKEN_BYTE);

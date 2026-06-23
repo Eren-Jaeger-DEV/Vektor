@@ -16,12 +16,9 @@ import { resolveImportPath } from "./stdlib.js";
 import { Lexer } from "./lexer.js";
 import { Token, TokenType } from "./tokens.js";
 import { Parser } from "./parser.js";
-import { Monomorphizer } from "./monomorphizer.js";
 import { Interpreter } from "./interpreter.js";
-import { Compiler } from "./compiler.js";
 import { VM } from "./vm.js";
 import { Serializer } from "./serializer.js";
-import { LLVMEmitter } from "./llvm-emitter.js";
 import { Program, Declaration, ASTNode } from "./ast.js";
 import { Chunk, ConstantType, CompiledProgram } from "./chunk.js";
 import { ASTPrinter } from "./printer.js";
@@ -55,7 +52,7 @@ if (args.length === 0) {
   console.log("  --run-ast        Run the program using the old AST Interpreter");
   console.log("  --exec           Execute a pre-compiled binary file (.vkb)");
   console.log("  --time           Measure and display execution time");
-  console.log("  --llvm           Compile the program to LLVM IR (.ll)");
+  console.log("  --time           Measure and display execution time");
   console.log("  --target <arch>  Specify LLVM target triple (e.g. x86_64-w64-mingw32)");
   process.exit(0);
 }
@@ -67,7 +64,6 @@ const runParser = args.includes("--parse");
 const runInterpreter = args.includes("--run");
 const runAstInterpreter = args.includes("--run-ast");
 const runCompiler = args.includes("--compile");
-const runLLVM = args.includes("--llvm");
 const execBinary = args.includes("--exec");
 const showTime = args.includes("--time");
 
@@ -155,6 +151,7 @@ else {
 
   function parseFile(currentPath: string, isMain: boolean) {
     if (resolvedFiles.has(currentPath)) return;
+    console.log("Parsing: " + currentPath);
     resolvedFiles.add(currentPath);
 
     if (!existsSync(currentPath)) {
@@ -256,11 +253,11 @@ else {
   };
 
   // --- Pass 2: Monomorphization (Generics) ---
-  const mono = new Monomorphizer();
-  const monoProgram = mono.monomorphize(mergedProgram);
+  // (Monomorphization is now fully handled by the self-hosted compiler)
+  const monoProgram = mergedProgram;
 
   // --- Pass 3: Concurrency Backend Check ---
-  if (!runLLVM && !runParser && (runInterpreter || runAstInterpreter || runCompiler)) {
+  if (!runParser && (runInterpreter || runAstInterpreter || runCompiler)) {
     let hasSpawn = false;
     const checkNode = (node: ASTNode) => {
       if (hasSpawn) return;
@@ -291,7 +288,7 @@ else {
 
   // ── Run Parser Output ────────────────────────────────────────
 
-  if (runParser || runInterpreter || runAstInterpreter || runCompiler || runLLVM || outputFile) {
+  if (runParser || runInterpreter || runAstInterpreter || runCompiler || outputFile) {
     if (runParser) {
       if (jsonOutput) {
         console.log(JSON.stringify({ ast: monoProgram, errors: allParseErrors }, null, 2));
@@ -316,31 +313,6 @@ else {
           console.log("");
         }
       }
-    }
-
-    // ── Run LLVM Emitter ───────────────────────────────────────
-
-    if (runLLVM) {
-      if (allParseErrors.length > 0) {
-        console.error(`\n  ⚠ Cannot compile: ${allParseErrors.length} parse error(s) found.\n`);
-        for (const e of allParseErrors) {
-          console.error(formatErrorWithSnippet(e.err, e.source, e.path));
-          console.error("");
-        }
-        process.exit(1);
-      }
-
-      console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
-      console.log(`  ║  Viktor Script LLVM Emitter                                ║`);
-      console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
-      console.log("");
-
-      const emitter = new LLVMEmitter(targetTriple);
-      const llvmIR = emitter.emit(monoProgram);
-      const outPath = outputFile || resolvedPath.replace(/\.vks$/, ".ll");
-      writeFileSync(outPath, llvmIR);
-      console.log(`  ✓ LLVM IR generated successfully to ${outPath}`);
-      console.log("");
     }
 
     // ── Run Compiler ───────────────────────────────────────────
@@ -373,8 +345,8 @@ else {
         console.log("");
 
         // Setup CLI arguments for the compiler.vkb
-        const vksArgs = [resolvedPath];
-        if (outputFile) vksArgs.push(outputFile);
+        const vksArgs = ["compile", resolvedPath];
+        if (outputFile) vksArgs.push("-o", outputFile);
         (global as any).__vks_args = vksArgs;
 
         const vm = new VM();
@@ -433,7 +405,7 @@ else {
            const compilerProg = serializer.deserialize(compilerBuffer);
 
            const tempOut = resolvedPath + ".tmp.vkb";
-           (global as any).__vks_args = [resolvedPath, tempOut];
+           (global as any).__vks_args = ["compile", resolvedPath, "-o", tempOut];
            
            const vmCompile = new VM();
            vmCompile.run(compilerProg);

@@ -1,0 +1,3 @@
+struct Pair { a: i32; b: i32; }
+fn get_pair(): Pair { let p: Pair; p.a = 10; p.b = 20; return p; }
+fn main() { let p: Pair = get_pair(); print(p.a); }

@@ -1,0 +1,11 @@
+import "vks-compiler/lexer.vks";
+
+function main() {
+  let source: str = read_file("test3.vks");
+  let tokens: Token = tokenize(source);
+  let curr: Token = tokens;
+  while (curr != null) {
+    print("Token: " + curr.type + " Lexeme: " + curr.lexeme);
+    curr = curr.next;
+  }
+}

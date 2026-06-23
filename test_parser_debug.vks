@@ -1,0 +1,18 @@
+import "vks-compiler/lexer.vks";
+import "vks-compiler/parser.vks";
+
+function main() {
+  let source: str = "function main() {}";
+  let tokens: Token = tokenize(source);
+  
+  let p: Parser = parser_new(tokens);
+  
+  print("Peek type: " + parser_peek(p).type);
+  print("TOKEN_FUNCTION: " + TOKEN_FUNCTION);
+  
+  if (parser_peek(p).type == TOKEN_FUNCTION) {
+    print("Match!");
+  } else {
+    print("No Match!");
+  }
+}

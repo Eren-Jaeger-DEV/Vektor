@@ -21,7 +21,7 @@ function lexer_new(source: str) -> Lexer {
 }
 
 function is_at_end(l: Lexer) -> bool {
-  return l.pos >= l.source.len;
+  return l.pos >= str_length(l.source);
 }
 
 function peek(l: Lexer) -> str {
@@ -61,12 +61,12 @@ function match_char(l: Lexer, expected: str) -> bool {
   return true;
 }
 
-function add_token(l: Lexer, type: str, lexeme: str, num_val: f64) {
+function add_token(l: Lexer, type: str, lexeme: str, num_val: f64, startLine: i32, startCol: i32) {
   let tok: Token = Token {
     type: type,
     lexeme: lexeme,
-    line: l.line,
-    column: l.column,
+    line: startLine,
+    column: startCol,
     num_val: num_val,
     next: null
   };
@@ -112,100 +112,113 @@ function skip_whitespace(l: Lexer) {
 }
 
 function tokenize(source: str) -> Token {
+  print("tokenize: lexer_new");
   let l: Lexer = lexer_new(source);
   let parsing: bool = true;
+  print("tokenize: before while");
   while (parsing and not is_at_end(l)) {
+    print("tokenize: inside while");
     skip_whitespace(l);
+    print("tokenize: after skip_whitespace");
     if (is_at_end(l)) {
       parsing = false;
     } else {
 
+    let startLine: i32 = l.line;
+    let startCol: i32 = l.column;
     let c: str = advance(l);
 
-    if (c == "(") { add_token(l, TOKEN_LPAREN, c, 0.0); }
-    else if (c == ")") { add_token(l, TOKEN_RPAREN, c, 0.0); }
-    else if (c == "{") { add_token(l, TOKEN_LBRACE, c, 0.0); }
-    else if (c == "}") { add_token(l, TOKEN_RBRACE, c, 0.0); }
-    else if (c == "[") { add_token(l, TOKEN_LBRACKET, c, 0.0); }
-    else if (c == "]") { add_token(l, TOKEN_RBRACKET, c, 0.0); }
-    else if (c == ";") { add_token(l, TOKEN_SEMICOLON, c, 0.0); }
+    if (c == "(") { add_token(l, TOKEN_LPAREN, c, 0.0, startLine, startCol); }
+    else if (c == ")") { add_token(l, TOKEN_RPAREN, c, 0.0, startLine, startCol); }
+    else if (c == "{") { add_token(l, TOKEN_LBRACE, c, 0.0, startLine, startCol); }
+    else if (c == "}") { add_token(l, TOKEN_RBRACE, c, 0.0, startLine, startCol); }
+    else if (c == "[") { add_token(l, TOKEN_LBRACKET, c, 0.0, startLine, startCol); }
+    else if (c == "]") { add_token(l, TOKEN_RBRACKET, c, 0.0, startLine, startCol); }
+    else if (c == ";") { add_token(l, TOKEN_SEMICOLON, c, 0.0, startLine, startCol); }
     else if (c == ":") {
-      if (match_char(l, ":")) { add_token(l, TOKEN_DOUBLE_DOT, "::", 0.0); }
-      else { add_token(l, TOKEN_COLON, c, 0.0); }
+      if (match_char(l, ":")) { add_token(l, TOKEN_DOUBLE_DOT, "::", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_COLON, c, 0.0, startLine, startCol); }
     }
-    else if (c == ",") { add_token(l, TOKEN_COMMA, c, 0.0); }
+    else if (c == ",") { add_token(l, TOKEN_COMMA, c, 0.0, startLine, startCol); }
     else if (c == ".") {
-      if (match_char(l, ".")) { add_token(l, TOKEN_DOUBLE_DOT, "..", 0.0); }
-      else { add_token(l, TOKEN_DOT, c, 0.0); }
+      if (match_char(l, ".")) { add_token(l, TOKEN_DOUBLE_DOT, "..", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_DOT, c, 0.0, startLine, startCol); }
     }
-    else if (c == "?") { add_token(l, TOKEN_QUESTION, c, 0.0); }
+    else if (c == "?") { add_token(l, TOKEN_QUESTION, c, 0.0, startLine, startCol); }
     else if (c == "-") {
-      if (match_char(l, "-")) { add_token(l, TOKEN_MINUS_MINUS, "--", 0.0); }
-      else if (match_char(l, ">")) { add_token(l, TOKEN_ARROW, "->", 0.0); }
-      else { add_token(l, TOKEN_MINUS, c, 0.0); }
+      if (match_char(l, ">")) { add_token(l, TOKEN_ARROW, "->", 0.0, startLine, startCol); }
+      else if (match_char(l, "-")) { add_token(l, TOKEN_MINUS_MINUS, "--", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_MINUS, c, 0.0, startLine, startCol); }
     }
     else if (c == "+") {
-      if (match_char(l, "+")) { add_token(l, TOKEN_PLUS_PLUS, "++", 0.0); }
-      else { add_token(l, TOKEN_PLUS, c, 0.0); }
+      if (match_char(l, "+")) { add_token(l, TOKEN_PLUS_PLUS, "++", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_PLUS, c, 0.0, startLine, startCol); }
     }
-    else if (c == "*") { add_token(l, TOKEN_STAR, c, 0.0); }
-    else if (c == "/") { add_token(l, TOKEN_SLASH, c, 0.0); }
-    else if (c == "%") { add_token(l, TOKEN_PERCENT, c, 0.0); }
+    else if (c == "*") { add_token(l, TOKEN_STAR, c, 0.0, startLine, startCol); }
+    else if (c == "/") { add_token(l, TOKEN_SLASH, c, 0.0, startLine, startCol); }
+    else if (c == "%") { add_token(l, TOKEN_PERCENT, c, 0.0, startLine, startCol); }
     else if (c == "!") {
-      if (match_char(l, "=")) { add_token(l, TOKEN_NOT_EQUALS, "!=", 0.0); }
-      else { add_token(l, TOKEN_BANG, c, 0.0); }
+      if (match_char(l, "=")) { add_token(l, TOKEN_NOT_EQUALS, "!=", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_BANG, c, 0.0, startLine, startCol); }
     }
     else if (c == "=") {
-      if (match_char(l, "=")) { add_token(l, TOKEN_DOUBLE_EQUALS, "==", 0.0); }
-      else { add_token(l, TOKEN_EQUALS, c, 0.0); }
+      if (match_char(l, "=")) { add_token(l, TOKEN_DOUBLE_EQUALS, "==", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_EQUALS, c, 0.0, startLine, startCol); }
     }
     else if (c == "<") {
-      if (match_char(l, "=")) { add_token(l, TOKEN_LESS_EQUALS, "<=", 0.0); }
-      else { add_token(l, TOKEN_LESS, c, 0.0); }
+      if (match_char(l, "=")) { add_token(l, TOKEN_LESS_EQUALS, "<=", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_LESS, c, 0.0, startLine, startCol); }
     }
     else if (c == ">") {
-      if (match_char(l, "=")) { add_token(l, TOKEN_GREATER_EQUALS, ">=", 0.0); }
-      else { add_token(l, TOKEN_GREATER, c, 0.0); }
+      if (match_char(l, "=")) { add_token(l, TOKEN_GREATER_EQUALS, ">=", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_GREATER, c, 0.0, startLine, startCol); }
     }
     else if (c == "&") {
-      if (match_char(l, "&")) { add_token(l, TOKEN_AND_AND, "&&", 0.0); }
-      else { add_token(l, TOKEN_AMPERSAND, c, 0.0); }
+      if (match_char(l, "&")) { add_token(l, TOKEN_AND_AND, "&&", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_AND, c, 0.0, startLine, startCol); }
     }
     else if (c == "|") {
-      if (match_char(l, "|")) { add_token(l, TOKEN_OR_OR, "||", 0.0); }
-      else { add_token(l, TOKEN_PIPE, c, 0.0); }
+      if (match_char(l, "|")) { add_token(l, TOKEN_OR_OR, "||", 0.0, startLine, startCol); }
+      else { add_token(l, TOKEN_OR, c, 0.0, startLine, startCol); }
     }
     else if (c == "\"") {
       let str_val: str = "";
-      while (peek(l) != "\"" and not is_at_end(l)) {
+      while (not is_at_end(l) and peek(l) != "\"") {
         if (peek(l) == "\\") {
-          advance(l); // consume slash
-          let escaped: str = advance(l);
-          if (escaped == "n") { str_val = str_val + "\n"; }
-          else if (escaped == "t") { str_val = str_val + "\t"; }
-          else if (escaped == "r") { str_val = str_val + "\r"; }
-          else if (escaped == "0") { str_val = str_val + "\0"; }
-          else if (escaped == "\\") { str_val = str_val + "\\"; }
-          else if (escaped == "\"") { str_val = str_val + "\""; }
-          else { str_val = str_val + escaped; }
+          advance(l);
+          if (peek(l) == "n") { str_val = str_val + "\n"; }
+          else if (peek(l) == "r") { str_val = str_val + "\r"; }
+          else if (peek(l) == "t") { str_val = str_val + "\t"; }
+          else if (peek(l) == "0") { str_val = str_val + "\0"; }
+          else if (peek(l) == "\\") { str_val = str_val + "\\"; }
+          else if (peek(l) == "\"") { str_val = str_val + "\""; }
+          else { str_val = str_val + peek(l); }
+          advance(l);
         } else {
           str_val = str_val + advance(l);
         }
       }
-      if (is_at_end(l)) {
-        print("Unterminated string");
-      } else {
+      if (not is_at_end(l)) {
         advance(l); // consume closing quote
-        add_token(l, TOKEN_STRING_LITERAL, str_val, 0.0);
       }
+      add_token(l, TOKEN_STRING_LITERAL, str_val, 0.0, startLine, startCol);
     }
     else if (c == "'") {
       let char_val: str = advance(l);
-      if (advance(l) != "'") {
-        print("Unterminated char literal");
-      } else {
-        add_token(l, TOKEN_CHAR_LITERAL, char_val, 0.0);
+      if (char_val == "\\") {
+        if (peek(l) == "n") { char_val = "\n"; }
+        else if (peek(l) == "r") { char_val = "\r"; }
+        else if (peek(l) == "t") { char_val = "\t"; }
+        else if (peek(l) == "0") { char_val = "\0"; }
+        else if (peek(l) == "\\") { char_val = "\\"; }
+        else if (peek(l) == "'") { char_val = "'"; }
+        else { char_val = peek(l); }
+        advance(l);
       }
+      if (not is_at_end(l)) {
+        advance(l); // consume closing quote
+      }
+      add_token(l, TOKEN_CHAR_LITERAL, char_val, 0.0, startLine, startCol);
     }
     else {
       if (is_digit(c)) {
@@ -213,14 +226,14 @@ function tokenize(source: str) -> Token {
         while (is_digit(peek(l))) {
           num_str = num_str + advance(l);
         }
-        if (peek(l) == "." and peek_next(l) != "." and is_digit(peek_next(l))) {
-          num_str = num_str + advance(l);
+        if (peek(l) == "." and is_digit(peek_next(l))) {
+          num_str = num_str + advance(l); // consume .
           while (is_digit(peek(l))) {
             num_str = num_str + advance(l);
           }
-          add_token(l, TOKEN_FLOAT_LITERAL, num_str, 0.0);
+          add_token(l, TOKEN_FLOAT_LITERAL, num_str, 0.0, startLine, startCol);
         } else {
-          add_token(l, TOKEN_INTEGER_LITERAL, num_str, 0.0);
+          add_token(l, TOKEN_INTEGER_LITERAL, num_str, 0.0, startLine, startCol);
         }
       } else if (is_alpha(c)) {
         let ident: str = c;
@@ -231,14 +244,14 @@ function tokenize(source: str) -> Token {
         if (map_has(KEYWORDS, ident)) {
            type_val = map_get(KEYWORDS, ident);
         }
-        add_token(l, type_val, ident, 0.0);
+        add_token(l, type_val, ident, 0.0, startLine, startCol);
       } else {
-        add_token(l, TOKEN_UNKNOWN, c, 0.0);
+        add_token(l, TOKEN_UNKNOWN, c, 0.0, startLine, startCol);
       }
     }
     }
   }
 
-  add_token(l, TOKEN_EOF, "", 0.0);
+  add_token(l, TOKEN_EOF, "", 0.0, l.line, l.column);
   return l.head;
 }

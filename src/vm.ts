@@ -118,7 +118,7 @@ export class VM {
     try {
       while (true) {
         this.instructionsExecuted++;
-        if (this.instructionsExecuted > 50000000) {
+        if (this.instructionsExecuted > 500000000) {
             throw new Error(`VM Infinite Loop Detected! ip: ${frame.ip}, op: ${code[frame.ip]}`);
         }
       

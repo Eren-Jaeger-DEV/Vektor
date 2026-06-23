@@ -122,6 +122,7 @@ int vks_argc = 0;
 char** vks_argv = NULL;
 
 int main(int argc, char** argv) {
+    printf("BOOTING VKS NATIVE...\n"); fflush(stdout);
     vks_argc = argc;
     vks_argv = argv;
     
@@ -372,3 +373,5 @@ void vks_socket_close(void* sock) {
         closesocket((SOCKET)sock);
     }
 }
+
+#include "vks_runtime_ext.c"

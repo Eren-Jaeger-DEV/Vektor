@@ -51,7 +51,7 @@ function install_single(dir: str, name: str, source: str) -> void {
       let i: i32 = 0;
       while (i < array_length(keys)) {
         let dep_name: str = keys[i];
-        let dep_source: str = map_get(deps, dep_name);
+        let dep_source: str = map_get_string(deps, dep_name);
         install_single(dir, dep_name, dep_source);
         i = i + 1;
       }
@@ -80,7 +80,7 @@ function install_all(dir: str) -> void {
     let i: i32 = 0;
     while (i < array_length(keys)) {
       let dep_name: str = keys[i];
-      let dep_source: str = map_get(deps, dep_name);
+      let dep_source: str = map_get_string(deps, dep_name);
       install_single(dir, dep_name, dep_source);
       i = i + 1;
     }

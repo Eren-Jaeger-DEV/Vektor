@@ -124,7 +124,7 @@ Fully abstracted complex LLVM `%str` and array struct layouts into native `i8*` 
 
 ---
 
-## Phase 15 — Cross-Platform Native Compilation
+## Phase 15 — Cross-Platform Native Compilation ✅
 
 ### 15.1 — Problem
 Phase 8 was verified on Windows via MinGW only. Linux and macOS are unverified.
@@ -139,7 +139,7 @@ The same `.vks` file produces correct output on all three major OSes, verified a
 
 ---
 
-## Phase 16 — Self-Hosted Package Manager (Final)
+## Phase 16 — Self-Hosted Package Manager (Final) ✅
 
 By now we have JSON parsing and file system intrinsics from Phase 11. Complete the port:
 - `vks-compiler/pkg.vks` fully replaces `package-manager.ts`
@@ -148,7 +148,7 @@ By now we have JSON parsing and file system intrinsics from Phase 11. Complete t
 
 ---
 
-## Phase 17 — Standalone Installer
+## Phase 17 — Standalone Installer ✅
 
 ### 17.1 — The actual independence milestone
 Right now, running anything requires `npx tsx src/main.ts ...` — Node.js in the loop. True independence means a user runs `vks` as a plain binary with **nothing else installed.**
@@ -216,11 +216,11 @@ Build one real, non-toy program entirely in Viktor Script — ideally something 
 | 12 | Error Handling & Debugging | ✅ Complete |
 | 13 | Concurrency | ✅ Complete |
 | 14 | Networking | ✅ Complete |
-| 15 | Cross-Platform Native Compile | Next Up (2-3 Weeks) |
-| 16 | Self-Hosted Package Manager | Planned (2 Weeks) |
-| 17 | Standalone Installer | Planned (2-3 Weeks) |
+| 15 | Cross-Platform Native Compile | ✅ Complete |
+| 16 | Self-Hosted Package Manager | ✅ Complete |
+| 17 | Standalone Installer | ✅ Complete |
 | 18 | Editor Tooling | Planned (1-4 Weeks) |
 | 19 | Battle Test | Planned (2-4 Weeks) |
 | 20 | Public Launch | Planned (1 Week) |
 
-**Total Completion:** 14 / 20 Phases (70%)
+**Total Completion:** 17 / 20 Phases (85%)

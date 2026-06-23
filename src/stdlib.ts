@@ -134,6 +134,7 @@ export const BUILTIN_SPECS: BuiltinSpec[] = [
   { name: "toLower",    module: "string.vks", arity: 1 },
   { name: "trim",       module: "string.vks", arity: 1 },
   { name: "substring",  module: "string.vks", arity: 3 },
+  { name: "str_length", module: "string.vks", arity: 1 },
   { name: "parseI32",   module: "string.vks", arity: 1 },
   // os
   { name: "time",       module: "os.vks",     arity: 0 },
@@ -273,6 +274,7 @@ export function registerInterpreterBuiltins(
   define("trim", 1, ([s]) => mkString(strVal(s).trim()));
   define("substring", 3, ([s, start, end]) =>
     mkString(strVal(s).substring(numVal(start), numVal(end))));
+  define("str_length", 1, ([s]) => mkInteger(strVal(s).length));
   define("parseI32", 1, ([s]) => mkInteger(parseInt(strVal(s), 10) || 0));
 
   define("time", 0, () => mkFloat(Date.now()));
@@ -765,6 +767,7 @@ export function registerVMBuiltins(
   define("toLower", 1, (s) => String(s).toLowerCase());
   define("trim", 1, (s) => String(s).trim());
   define("substring", 3, (s, start, end) => String(s).substring(start, end));
+  define("str_length", 1, (s) => String(s).length);
   define("parseI32", 1, (s) => parseInt(String(s), 10) || 0);
 
   define("time", 0, () => Date.now());
