@@ -346,6 +346,8 @@ else {
 
         // Setup CLI arguments for the compiler.vkb
         const vksArgs = ["compile", resolvedPath];
+        if (args.includes("--llvm")) vksArgs.push("--llvm");
+        if (args.includes("--native")) vksArgs.push("--native");
         if (outputFile) vksArgs.push("-o", outputFile);
         (global as any).__vks_args = vksArgs;
 
