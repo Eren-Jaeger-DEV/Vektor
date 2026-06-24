@@ -506,8 +506,46 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
   if (expr.kind == "BinaryExpr") {
     let left: EmitResult = emit_expr(emitter, expr.left, null);
     let right: EmitResult = emit_expr(emitter, expr.right, null);
-    let reg: str = next_temp(emitter);
     let op: str = expr.op;
+    
+    if (left.type == "%str" and right.type == "%str" and op == "+") {
+      let lPtr: str = next_temp(emitter);
+      emit_line(emitter, "  " + lPtr + " = extractvalue %str " + left.reg + ", 0");
+      let lLen: str = next_temp(emitter);
+      emit_line(emitter, "  " + lLen + " = extractvalue %str " + left.reg + ", 1");
+      
+      let rPtr: str = next_temp(emitter);
+      emit_line(emitter, "  " + rPtr + " = extractvalue %str " + right.reg + ", 0");
+      let rLen: str = next_temp(emitter);
+      emit_line(emitter, "  " + rLen + " = extractvalue %str " + right.reg + ", 1");
+      
+      let newLen: str = next_temp(emitter);
+      emit_line(emitter, "  " + newLen + " = add i64 " + lLen + ", " + rLen);
+      
+      let newPtr: str = next_temp(emitter);
+      emit_line(emitter, "  " + newPtr + " = call i8* @malloc(i64 " + newLen + ")");
+      
+      emit_line(emitter, "  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 " + newPtr + ", i8* align 1 " + lPtr + ", i64 " + lLen + ", i1 false)");
+      
+      let offsetPtr: str = next_temp(emitter);
+      emit_line(emitter, "  " + offsetPtr + " = getelementptr inbounds i8, i8* " + newPtr + ", i64 " + lLen);
+      emit_line(emitter, "  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 " + offsetPtr + ", i8* align 1 " + rPtr + ", i64 " + rLen + ", i1 false)");
+      
+      let newStr: str = next_temp(emitter);
+      emit_line(emitter, "  " + newStr + " = alloca %str");
+      let tp1: str = next_temp(emitter);
+      emit_line(emitter, "  " + tp1 + " = getelementptr inbounds %str, %str* " + newStr + ", i32 0, i32 0");
+      emit_line(emitter, "  store i8* " + newPtr + ", i8** " + tp1);
+      let tp2: str = next_temp(emitter);
+      emit_line(emitter, "  " + tp2 + " = getelementptr inbounds %str, %str* " + newStr + ", i32 0, i32 1");
+      emit_line(emitter, "  store i64 " + newLen + ", i64* " + tp2);
+      
+      let finalStr: str = next_temp(emitter);
+      emit_line(emitter, "  " + finalStr + " = load %str, %str* " + newStr);
+      return EmitResult { reg: finalStr, type: "%str" };
+    }
+    
+    let reg: str = next_temp(emitter);
     let is_float: bool = (left.type == "float" or left.type == "double");
     let llvm_op: str = "add";
     
