@@ -416,8 +416,8 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
 
   if (expr.kind == "ArrayLiteral") {
     let array_type: str = expected_type;
-    if (array_type == null and expr.elements != null) {
-       let first: EmitResult = emit_expr(emitter, expr.elements, null);
+    if (array_type == null and expr.args != null) {
+       let first: EmitResult = emit_expr(emitter, expr.args, null);
        array_type = "%array_" + first.type;
     }
     
@@ -428,7 +428,7 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
     }
     
     let elem_count: i32 = 0;
-    let curr_el: ASTNode = expr.elements;
+    let curr_el: ASTNode = expr.args;
     while (curr_el != null) { elem_count = elem_count + 1; curr_el = curr_el.next; }
     
     let reg: str = next_temp(emitter);
@@ -457,7 +457,7 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
     emit_line(emitter, "  store " + elem_type + "* " + typed_data + ", " + elem_type + "** " + data_ptr);
     
     let i: i32 = 0;
-    curr_el = expr.elements;
+    curr_el = expr.args;
     while (curr_el != null) {
       let val: EmitResult = emit_expr(emitter, curr_el, elem_type);
       let elem_ptr: str = next_temp(emitter);
