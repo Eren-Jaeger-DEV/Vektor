@@ -26,17 +26,17 @@ function install_single(dir: str, name: str, source: str) -> void {
   
   let dest: str = modules_dir + "/" + name;
   if (file_exists(dest)) {
-    print("  " + name + " — already installed, skipping");
+    print("  " + name + " - already installed, skipping");
     return;
   }
   
   if (charAt(source, 0) == "." or charAt(source, 0) == "/") {
     // Local copy
-    print("  " + name + " — copying from local path " + source);
+    print("  " + name + " - copying from local path " + source);
     shell_exec("powershell -c \"Copy-Item -Recurse -Force '" + source + "' '" + dest + "'\"");
   } else {
     // Git clone
-    print("  " + name + " — cloning from " + source + "...");
+    print("  " + name + " - cloning from " + source + "...");
     shell_exec("git clone --depth 1 \"" + source + "\" \"" + dest + "\"");
   }
   
