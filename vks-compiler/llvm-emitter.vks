@@ -1184,6 +1184,37 @@ function emit_program(program: ASTNode, target_triple: str) -> str {
   emit_line(emitter, "%array_dynamic = type { i32, i32, i8* }");
   emit_line(emitter, "");
   
+  emit_line(emitter, "; Extern declarations");
+  emit_line(emitter, "declare i8* @malloc(i64)");
+  emit_line(emitter, "declare void @free(i8*)");
+  emit_line(emitter, "declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg)");
+  emit_line(emitter, "declare void @vks_print_i32(i32)");
+  emit_line(emitter, "declare void @vks_print_f64(double)");
+  emit_line(emitter, "declare void @vks_print_str(i8*, i64)");
+  emit_line(emitter, "declare void @vks_print_bool(i32)");
+  emit_line(emitter, "declare double @vks_sqrt(double)");
+  emit_line(emitter, "declare void @vks_push_frame(i8*)");
+  emit_line(emitter, "declare void @vks_pop_frame()");
+  emit_line(emitter, "declare void @vks_panic(i8*)");
+  
+  // Runtime string, regex, network, thread functions
+  emit_line(emitter, "declare %str* @vks_str_split(i8*, i64, i8*, i64)");
+  emit_line(emitter, "declare %str @vks_str_replace(%str, %str, %str)");
+  emit_line(emitter, "declare void @vks_free_str_array(%array_str)");
+  emit_line(emitter, "declare i8* @vks_tcp_connect(i8*, i64, i32)");
+  emit_line(emitter, "declare i32 @vks_socket_send(i8*, i8*, i64)");
+  emit_line(emitter, "declare %str* @vks_socket_recv_all(i8*)");
+  emit_line(emitter, "declare void @vks_socket_close(i8*)");
+  emit_line(emitter, "declare %str* @vks_get_env(%str)");
+  emit_line(emitter, "declare i32 @vks_system(%str)");
+  emit_line(emitter, "declare i8* @vks_thread_spawn(i8*, i8*)");
+  emit_line(emitter, "declare void @vks_thread_join(i8*)");
+  emit_line(emitter, "declare i8* @vks_mutex_new()");
+  emit_line(emitter, "declare void @vks_mutex_lock(i8*)");
+  emit_line(emitter, "declare void @vks_mutex_unlock(i8*)");
+  emit_line(emitter, "declare void @vks_mutex_destroy(i8*)");
+  emit_line(emitter, "");
+  
   // First pass: define struct types
   let curr_struct: ASTNode = program.right;
   while (curr_struct != null) {
