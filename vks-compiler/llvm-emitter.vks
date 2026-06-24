@@ -19,7 +19,7 @@ function vks_type_to_llvm(typeNode: ASTNode) -> str {
     if (typeNode.name == "bool") { return "i1"; }
     if (typeNode.name == "void") { return "void"; }
     if (typeNode.name == "str") { return "%str"; }
-    return "%" + typeNode.name; // Struct type
+    return "%" + typeNode.name + "*"; // Struct type
   }
   
   if (typeNode.kind == "PointerType") {
@@ -1255,6 +1255,9 @@ function emit_program(program: ASTNode, target_triple: str) -> str {
       let curr_f: ASTNode = curr_struct.fields;
       while (curr_f != null) {
         let field_type: str = vks_type_to_llvm(curr_f.returnType);
+        if (struct_name == "ASTNode") {
+          print("DEBUG ASTNode field: " + curr_f.name + " -> " + field_type);
+        }
         add_struct_field(layout, curr_f.name, field_type, field_idx);
         
         if (field_idx > 0) { fields_str = fields_str + ", "; }

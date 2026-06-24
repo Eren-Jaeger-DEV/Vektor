@@ -22,7 +22,7 @@ export function vksTypeToLLVM(t: TypeNode): string {
         case "void": return "void";
         case "str": return "%str"; // builtin string struct
         default:
-          return `%${pt.name}`; // Struct type
+          return `%${pt.name}*`; // Struct type
       }
     }
     case "PointerType": {

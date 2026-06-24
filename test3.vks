@@ -1,1 +1,13 @@
-function main() {}
+import "vks-compiler/ast.vks";
+import "vks-compiler/llvm-emitter.vks";
+
+function main() {
+  let node: ASTNode = ast_node_new("PrimitiveType", 0, 0);
+  node.name = "ASTNode";
+  let field_type: str = vks_type_to_llvm(node);
+  print(field_type);
+  
+  let layout: StructLayoutEntry = add_struct_layout(null, "ASTNode", "%ASTNode");
+  add_struct_field(layout, "left", field_type, 0);
+  print(layout.fields.type);
+}
