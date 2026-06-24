@@ -1137,6 +1137,15 @@ function emit_function(emitter: LLVMEmitter, func_node: ASTNode) -> void {
 function emit_program(program: ASTNode, target_triple: str) -> str {
   let emitter: LLVMEmitter = llvm_emitter_new(target_triple);
   
+  emit_line(emitter, "; Built-in types");
+  emit_line(emitter, "%str = type { i8*, i64 }");
+  emit_line(emitter, "%array_str = type { i32, i32, %str* }");
+  emit_line(emitter, "%array_i32 = type { i32, i32, i32* }");
+  emit_line(emitter, "%array_i64 = type { i32, i32, i64* }");
+  emit_line(emitter, "%array_i8 = type { i32, i32, i8* }");
+  emit_line(emitter, "%array_dynamic = type { i32, i32, i8* }");
+  emit_line(emitter, "");
+  
   // First pass: define struct types
   let curr_struct: ASTNode = program.right;
   while (curr_struct != null) {
