@@ -102,17 +102,61 @@ function main() {
   
   if (cmd == "compile") {
     if (args_count() < 2) {
-      print("Usage: vks compile <target.vks> [-o output.vkb]");
+      print("Usage: vks compile <target.vks> [--llvm|--native] [-o output]");
       return null;
     }
     let target_file: str = args_get(1);
-    let output_file: str = "output.vkb";
-    if (args_count() >= 4 and args_get(2) == "-o") {
-      output_file = args_get(3);
+    
+    let is_llvm: bool = false;
+    let is_native: bool = false;
+    let output_file: str = null;
+    let target_triple: str = "x86_64-w64-mingw32";
+    
+    let i: i32 = 2;
+    while (i < args_count()) {
+      let arg: str = args_get(i);
+      if (arg == "--llvm") { is_llvm = true; i = i + 1; }
+      else if (arg == "--native") { is_native = true; is_llvm = true; i = i + 1; }
+      else if (arg == "-o" and i + 1 < args_count()) {
+        output_file = args_get(i + 1);
+        i = i + 2;
+      } else { i = i + 1; }
     }
     
-    let c: Compiler = compile_file(target_file);
-    serialize_compiler(c, output_file);
+    if (output_file != null) {
+      if (indexOf(output_file, ".ll") > 0) { is_llvm = true; }
+      if (indexOf(output_file, ".exe") > 0) { is_llvm = true; is_native = true; }
+    }
+    
+    if (is_llvm) {
+      if (output_file == null) {
+        if (is_native) { output_file = "output.exe"; }
+        else { output_file = target_file + ".ll"; }
+      }
+      let resolved: map<bool> = map_create();
+      let ast: ASTNode = compile_file_with_imports(target_file, resolved);
+      let mono_ast: ASTNode = monomorphize(ast);
+      let llvm_ir: str = emit_program(mono_ast, target_triple);
+      if (is_native) {
+        let ll_file: str = target_file + ".ll";
+        write_file(ll_file, llvm_ir);
+        let compiler_dir: str = get_env("VKS_HOME");
+        let runtime_path: str = "runtime.c";
+        let runtime_ext_path: str = "vks_runtime_ext.c";
+        if (compiler_dir != null) {
+          runtime_path = compiler_dir + "/lib/runtime.c";
+          runtime_ext_path = compiler_dir + "/lib/vks_runtime_ext.c";
+        }
+        let clang_cmd: str = "clang " + ll_file + " " + runtime_path + " " + runtime_ext_path + " -o " + output_file + " -lws2_32 -pthread -target " + target_triple;
+        system(clang_cmd);
+      } else {
+        write_file(output_file, llvm_ir);
+      }
+    } else {
+      if (output_file == null) { output_file = "output.vkb"; }
+      let c: Compiler = compile_file(target_file);
+      serialize_compiler(c, output_file);
+    }
     return null;
   }
   

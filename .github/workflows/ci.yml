@@ -26,7 +26,7 @@ jobs:
       run: npm install
 
     - name: Bootstrapping Compiler (Compile test_http.vks to LLVM IR)
-      run: npx tsx src/main.ts test_http.vks --llvm
+      run: npx tsx src/main.ts test_http.vks --llvm -o test_http.ll
 
     - name: Compile Native Binary (Linux / macOS)
       if: runner.os != 'Windows'
@@ -69,7 +69,7 @@ jobs:
       if: runner.os != 'Windows'
       run: |
         # 1. Bootstrapping VKS native binary using TS
-        npx tsx src/main.ts vks-compiler/main.vks --llvm
+        npx tsx src/main.ts vks-compiler/main.vks --llvm -o main.ll
         clang main.ll runtime.c -o vks -pthread
         
         # 2. Testing VKS native binary
