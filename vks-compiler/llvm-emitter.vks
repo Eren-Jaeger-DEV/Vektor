@@ -864,7 +864,7 @@ function emit_expr(emitter: LLVMEmitter, expr: ASTNode, expected_type: str) -> E
     }
     if (callee_name == "socket_send") {
       let arg1: EmitResult = emit_expr(emitter, arg0, null);
-      let arg2: EmitResult = emit_expr(emitter, arg1, null);
+      let arg2: EmitResult = emit_expr(emitter, arg0.next, null);
       
       let ptr_reg: str = next_temp(emitter);
       emit_line(emitter, "  " + ptr_reg + " = extractvalue %str " + arg2.reg + ", 0");
