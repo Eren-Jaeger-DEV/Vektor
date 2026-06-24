@@ -281,13 +281,40 @@ function pop_scope(emitter: LLVMEmitter) -> void {
   }
 }
 
+function escape_llvm_string(s: str) -> str {
+  let res: str = "";
+  let i: i32 = 0;
+  let len: i32 = str_length(s);
+  while (i < len) {
+    let c: str = charAt(s, i);
+    if (c == "\\") {
+      res = res + "\\\\";
+    } else if (c == "\"") {
+      res = res + "\\22";
+    } else if (c == "\n") {
+      res = res + "\\0A";
+    } else if (c == "\r") {
+      res = res + "\\0D";
+    } else if (c == "\t") {
+      res = res + "\\09";
+    } else if (c == "\0") {
+      res = res + "\\00";
+    } else {
+      res = res + c;
+    }
+    i = i + 1;
+  }
+  return res;
+}
+
 function emit_global_string(emitter: LLVMEmitter, str_val: str) -> str {
   let id: i32 = emitter.string_count;
   emitter.string_count = id + 1;
   let global_name: str = "@.str." + toString(id);
   
+  let escaped: str = escape_llvm_string(str_val);
   let len: i32 = str_length(str_val) + 1;
-  let def: str = global_name + " = private unnamed_addr constant [" + toString(len) + " x i8] c\"" + str_val + "\\00\", align 1";
+  let def: str = global_name + " = private unnamed_addr constant [" + toString(len) + " x i8] c\"" + escaped + "\\00\", align 1";
   
   let buf: OutputBuffer = OutputBuffer { line: def, next: emitter.global_strings };
   emitter.global_strings = buf;
