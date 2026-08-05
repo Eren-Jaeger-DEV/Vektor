@@ -1,8 +1,0 @@
-import "vks-compiler/ast.vks";
-import "vks-compiler/llvm-emitter.vks";
-
-function main() {
-  let node: ASTNode = ast_node_new("PrimitiveType", 0, 0);
-  node.name = "ASTNode";
-  print(vks_type_to_llvm(node));
-}

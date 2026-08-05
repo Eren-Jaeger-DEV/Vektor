@@ -1,9 +1,0 @@
-import "vks-compiler/io.vks";
-
-function main() {
-  let buf: byte[] = array_new();
-  array_push(buf, 65);
-  array_push(buf, 66);
-  let result: bool = write_binary("test_write.vkb", buf);
-  print("Write Result: " + toString(result));
-}

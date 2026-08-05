@@ -62,6 +62,25 @@ export class ParseError extends Error {
 }
 
 /**
+ * Represents a static type error encountered during type checking.
+ */
+export class TypeCheckError extends Error {
+  readonly line: number;
+  readonly column: number;
+
+  constructor(line: number, column: number, message: string) {
+    super(message);
+    this.name = "TypeCheckError";
+    this.line = line;
+    this.column = column;
+  }
+
+  toString(): string {
+    return `[Line ${this.line}, Col ${this.column}] Type Error: ${this.message}`;
+  }
+}
+
+/**
  * Helper to format a ParseError with a Rust-style source code snippet pointer.
  */
 export function formatErrorWithSnippet(err: ParseError, source: string, fileName: string): string {

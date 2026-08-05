@@ -22,6 +22,7 @@ import { Serializer } from "./serializer.js";
 import { Program, Declaration, ASTNode } from "./ast.js";
 import { Chunk, ConstantType, CompiledProgram } from "./chunk.js";
 import { ASTPrinter } from "./printer.js";
+import { TypeChecker } from "./checker.js";
 import { RuntimeError, ParseError, LexerError, formatErrorWithSnippet } from "./errors.js";
 
 const args = process.argv.slice(2);
@@ -255,6 +256,19 @@ else {
   // --- Pass 2: Monomorphization (Generics) ---
   // (Monomorphization is now fully handled by the self-hosted compiler)
   const monoProgram = mergedProgram;
+
+  // --- Pass 2.5: Static Type Checker ---
+  const typeChecker = new TypeChecker();
+  const { errors: typeErrors } = typeChecker.check(monoProgram);
+  if (typeErrors.length > 0) {
+    const isStrict = args.includes("--strict-types");
+    console.log(`  ⚠ ${typeErrors.length} type check warning(s):`);
+    for (const e of typeErrors) console.log(`    ${e.toString()}`);
+    console.log("");
+    if (isStrict) {
+      process.exit(1);
+    }
+  }
 
   // --- Pass 3: Concurrency Backend Check ---
   if (!runParser && (runInterpreter || runAstInterpreter || runCompiler)) {

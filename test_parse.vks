@@ -1,4 +1,0 @@
-fn main() {
-    let x: str = "hello";
-    print(x);
-}

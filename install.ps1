@@ -4,7 +4,7 @@ Write-Host "Downloading Viktor Script..." -ForegroundColor Cyan
 
 $Release = "vks-windows-x64.zip"
 $InstallDir = Join-Path $env:USERPROFILE ".vks"
-$DownloadUrl = "https://github.com/viktor/vks/releases/latest/download/$Release"
+$DownloadUrl = "https://github.com/Eren-Jaeger-DEV/VKS/releases/latest/download/$Release"
 $ZipPath = Join-Path $InstallDir $Release
 
 if (-not (Test-Path $InstallDir)) {

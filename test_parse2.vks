@@ -1,8 +1,0 @@
-import "vks-compiler/lexer.vks";
-import "vks-compiler/parser.vks";
-
-function main() {
-  let source: str = read_file("test3.vks");
-  let tokens: Token = tokenize(source);
-  let p: Parser = parse(tokens);
-}

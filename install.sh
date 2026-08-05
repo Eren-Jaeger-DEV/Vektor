@@ -21,7 +21,7 @@ if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
 fi
 
 INSTALL_DIR="$HOME/.vks"
-DOWNLOAD_URL="https://github.com/viktor/vks/releases/latest/download/$RELEASE"
+DOWNLOAD_URL="https://github.com/Eren-Jaeger-DEV/VKS/releases/latest/download/$RELEASE"
 
 echo "Fetching $DOWNLOAD_URL"
 mkdir -p "$INSTALL_DIR"

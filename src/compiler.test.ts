@@ -12,7 +12,6 @@ import { CompiledProgram, ConstantType } from "./chunk.js";
 import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
 import { VM } from "./vm.js";
-import { Serializer } from "./serializer.js";
 
 function compileVKS(source: string, tempVksPath: string, tempVkbPath: string) {
   // Write the test source

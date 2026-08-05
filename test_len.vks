@@ -1,5 +1,0 @@
-fn main() {
-    let source: str = read_file("test_parse.vks");
-    print("read!");
-    print(str_length(source));
-}

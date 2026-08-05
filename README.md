@@ -43,7 +43,7 @@ function main() {
 
 Rust gives you memory safety through a borrow checker that takes months to internalize. Zig gives you raw control but assumes you're already a systems programmer. TypeScript is easy to learn but can't touch memory or compile to a native binary.
 
-Viktor Script's lane: **the power of manual memory and native compilation, without the cliff.** One owner per value, explicit `clone()`, no fighting a checker for hours over lifetimes. Every syntax choice in the language points at this same goal — see [MANIFESTO.md](./MANIFESTO.md) for the full philosophy.
+Viktor Script's lane: **the power of manual memory and native compilation, without the cliff.** One owner per value, explicit `clone()`, no fighting a checker for hours over lifetimes. Every syntax choice in the language points at this same goal — see [Manifesto.md](./Manifesto.md) for the full philosophy.
 
 ---
 
@@ -74,9 +74,15 @@ Verified with 280+ automated tests across lexer, parser, interpreter, compiler, 
 
 ### Install
 
+#### One-Line Shell Install (Linux / macOS):
 ```bash
-git clone <your-repo-url>
-cd viktor-script
+curl -fsSL https://raw.githubusercontent.com/Eren-Jaeger-DEV/VKS/main/install.sh | sh
+```
+
+#### From Source:
+```bash
+git clone https://github.com/Eren-Jaeger-DEV/VKS.git
+cd VKS
 npm install
 ```
 
@@ -142,7 +148,7 @@ With the core pipeline complete, future directions include:
 
 ## License
 
-[Add your license here — MIT recommended for an open language project]
+This project is licensed under the [MIT License](./LICENSE).
 
 ---
 

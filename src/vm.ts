@@ -460,7 +460,6 @@ export class VM {
             obj.fields.set(fieldName, value);
             this.push(value); // Keep value on stack for chained assignments (or pop later)
           } else {
-            console.log("OBJ IS:", obj);
             throw new Error(`RuntimeError: Attempt to set field on non-struct.`);
           }
           break;

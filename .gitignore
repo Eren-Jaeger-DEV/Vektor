@@ -1,10 +1,15 @@
 node_modules/
 dist/
 *.zip
+*.log
 *.txt
 *.ll
 *.o
 *.exe
 *.vkb
 !compiler.vkb
-test_*-*-*-*-*.vks
+!vks-compiler/compiler.vkb
+test_*.vks
+tmp/
+*.tmp
+*.vsix
