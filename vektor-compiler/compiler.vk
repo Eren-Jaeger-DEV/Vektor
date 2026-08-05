@@ -453,9 +453,15 @@ function compile_expression(c: Compiler, node: ASTNode) {
     compile_expression(c, node.left); // Using left for value
     emit_op(c, OP_CLONE, node.line);
   } else if (kind == "CastExpr") {
-    compile_expression(c, node.left); // Using left for value
+    let target_name: str = "i32";
+    if (node.returnType != null && node.returnType.name.len > 0) {
+      target_name = node.returnType.name;
+    }
+    let type_const: Constant = Constant { type: CONST_TYPE_STRING, int_val: 0, float_val: 0.0, str_val: target_name, fn_index: 0, next: null };
+    let type_idx: i32 = chunk_add_constant(c.chunk, type_const);
+    compile_expression(c, node.left);
     emit_op(c, OP_CAST, node.line);
-    emit_byte(c, node.int_val, node.line); // Assuming int_val holds typeId
+    emit_u16(c, type_idx, node.line);
   } else if (kind == "UnaryExpr") {
     if (node.op == "&") {
       if (node.right.kind != "Identifier") {

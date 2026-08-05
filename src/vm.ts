@@ -440,6 +440,10 @@ export class VM {
             else throw new RuntimeError(`Array has no field '${fieldName}'`, line);
           } else if (typeof obj === "string") {
             if (fieldName === "len") this.push(obj.length);
+            else if (fieldName === "bytes") {
+              const bytes = Array.from(Buffer.from(obj, "utf-8"));
+              this.push(bytes);
+            }
             else throw new RuntimeError(`String has no field '${fieldName}'`, line);
           } else {
             throw new RuntimeError(`Cannot access field '${fieldName}' on non-object`, line);

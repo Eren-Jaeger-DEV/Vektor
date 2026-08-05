@@ -1,0 +1,5 @@
+import "io.vk";
+
+function main() {
+  print("Hello from Vektor!");
+}

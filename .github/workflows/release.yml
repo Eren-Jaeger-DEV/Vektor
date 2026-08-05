@@ -45,13 +45,13 @@ jobs:
 
     - name: Compile Native Binary (Linux / macOS)
       if: runner.os != 'Windows'
-      run: clang -O3 vks.ll src/runtime.c src/vks_runtime_ext.c -o vks -pthread
+      run: clang -O3 vks.ll runtime.c vektor_runtime_ext.c -o vks -pthread
 
     - name: Compile Native Binary (Windows)
       if: runner.os == 'Windows'
       run: |
         $env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
-        clang -O3 vks.ll src/runtime.c src/vks_runtime_ext.c -o vks.exe -lws2_32 -target x86_64-w64-mingw32
+        clang -O3 vks.ll runtime.c vektor_runtime_ext.c -o vks.exe -lws2_32 -target x86_64-w64-mingw32
 
     - name: Package Release
       shell: bash
@@ -62,8 +62,8 @@ jobs:
         else
           cp vks dist/bin/
         fi
-        cp src/runtime.c dist/lib/
-        cp src/vks_runtime_ext.c dist/lib/
+        cp runtime.c dist/lib/
+        cp vektor_runtime_ext.c dist/lib/
         if [ -d "stdlib" ]; then
           cp -r stdlib/* dist/stdlib/ || true
         fi

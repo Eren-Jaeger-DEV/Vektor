@@ -81,7 +81,7 @@ const jsonOutput = args.includes("--json");
 const runParser = args.includes("--parse");
 const runInterpreter = args.includes("--run");
 const runAstInterpreter = args.includes("--run-ast");
-const runCompiler = args.includes("--compile");
+const runCompiler = args.includes("--compile") || args.includes("-c") || args.includes("--llvm") || args.includes("--native");
 const execBinary = args.includes("--exec");
 const showTime = args.includes("--time");
 

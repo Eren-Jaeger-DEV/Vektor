@@ -470,6 +470,9 @@ export class TypeChecker {
       if (expr.field.name === "len") {
         return { kind: "primitive", name: "i32" };
       }
+      if (expr.field.name === "bytes" && objType.name === "str") {
+        return { kind: "array", elementType: { kind: "primitive", name: "byte" } };
+      }
     }
 
     if (objType.kind === "result") {
