@@ -364,7 +364,7 @@ export class TypeChecker {
     const op = expr.operator.lexeme;
 
     if (op === "+" || op === "-" || op === "*" || op === "/" || op === "%") {
-      if (op === "+" && this.isString(leftType) && this.isString(rightType)) {
+      if (op === "+" && (this.isString(leftType) || this.isString(rightType))) {
         return { kind: "primitive", name: "str" };
       }
       if (this.isNumeric(leftType) && this.isNumeric(rightType)) {
