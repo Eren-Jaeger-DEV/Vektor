@@ -14,6 +14,7 @@ import { Declaration } from "../src/ast.js";
 const root = process.cwd();
 const mainPath = resolve(root, "vektor-compiler", "main.vk");
 const llPath = resolve(root, "vektor-compiler.ll");
+const sPath = resolve(root, "vektor-compiler.s");
 const binName = process.platform === "win32" ? "vektor.exe" : "vektor";
 const binPath = resolve(root, binName);
 
@@ -64,23 +65,18 @@ try {
   checker.check(mergedProgram);
 
   const emitter = new LLVMEmitter();
-  try {
-    const llvmIR = emitter.emit(mergedProgram);
-    writeFileSync(llPath, llvmIR, "utf-8");
-    console.log(`  ✓ Generated LLVM IR -> ${llPath}`);
-  } catch (err: any) {
-    console.error("  ✗ LLVM Emitter error:", err.message);
-    console.error(err.stack);
-    process.exit(1);
-  }
+  const llvmIR = emitter.emit(mergedProgram);
+  writeFileSync(llPath, llvmIR, "utf-8");
+  console.log(`  ✓ Generated LLVM IR -> ${llPath}`);
 
-  // Compile with clang or gcc
   let compilerCmd = "";
   try {
     execSync("which clang");
     compilerCmd = `clang "${llPath}" runtime.c thread_posix.c -o "${binPath}" -lm -lpthread`;
   } catch {
-    compilerCmd = `gcc -x c "${llPath}" runtime.c thread_posix.c -o "${binPath}" -lm -lpthread`;
+    console.log("  ↓ Converting LLVM IR to assembly using llc...");
+    execSync(`llc "${llPath}" -o "${sPath}"`);
+    compilerCmd = `gcc "${sPath}" runtime.c thread_posix.c -o "${binPath}" -lm -lpthread`;
   }
 
   console.log(`  ↓ Compiling machine binary using: ${compilerCmd}`);
@@ -93,6 +89,7 @@ try {
   }
 
   if (existsSync(llPath)) unlinkSync(llPath);
+  if (existsSync(sPath)) unlinkSync(sPath);
 } catch (err: any) {
   console.error("  ✗ Build failed:", err.message || err);
   process.exit(1);

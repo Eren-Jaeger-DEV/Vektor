@@ -1,0 +1,29 @@
+
+      struct DivisionResult {
+        ok: bool;
+        value: i32;
+        error: str;
+      }
+
+      fn safe_divide(numerator: i32, denominator: i32) -> DivisionResult {
+        if denominator == 0 {
+          return DivisionResult { ok: false, value: 0, error: "Division by zero" };
+        }
+        return DivisionResult { ok: true, value: numerator / denominator, error: "" };
+      }
+
+      function main() {
+        let r1: DivisionResult = safe_divide(100, 4);
+        let r2: DivisionResult = safe_divide(100, 0);
+
+        let sum: i32 = 0;
+        if r1.ok {
+          sum = sum + r1.value; // + 25
+        }
+        if not r2.ok {
+          sum = sum + 75;       // + 75
+        }
+
+        print(sum); // 100
+      }
+    
