@@ -34,8 +34,8 @@ describe("Example Programs End-to-End VM Execution (--run)", () => {
   it("executes examples/showcase.vk on Bytecode VM", () => {
     const file = resolve(root, "examples", "showcase.vk");
     const output = execSync(`npx tsx src/main.ts "${file}" --run`, { encoding: "utf-8" });
-    expect(output).toContain("VEKTOR LANGUAGE SHOWCASE");
-    expect(output).toContain("Showcase completed successfully!");
+    expect(output).toContain("VEKTOR DEMO & TEST SUITE");
+    expect(output).toContain("ALL VEKTOR TESTS PASSED SUCCESSFULLY!");
     expect(output).toContain("Program finished successfully");
   });
 });
