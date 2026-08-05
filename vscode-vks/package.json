@@ -1,8 +1,8 @@
 {
   "name": "vscode-vks",
   "displayName": "ViktorScript",
-  "description": "Official language support for ViktorScript",
-  "version": "0.1.0",
+  "description": "Official language support and Language Server (LSP) for ViktorScript",
+  "version": "0.2.0",
   "publisher": "vks-lang",
   "repository": {
     "type": "git",
@@ -11,9 +11,25 @@
   "engines": {
     "vscode": "^1.80.0"
   },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:vks"
+  ],
   "categories": [
     "Programming Languages"
   ],
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  },
   "contributes": {
     "languages": [
       {

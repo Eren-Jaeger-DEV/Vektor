@@ -24,7 +24,7 @@ function send_diagnostics(uri: str, error_msg: str, error_line: i32, error_col: 
   let diagnostics: map<any>[] = array_new();
   
   if (error_msg != "") {
-    // VS Code lines and cols are 0-indexed, our parser is 1-indexed
+    // VS Code lines and cols are 0-indexed, parser is 1-indexed
     let line: i32 = error_line - 1;
     if (line < 0) { line = 0; }
     let col: i32 = error_col - 1;
@@ -58,6 +58,20 @@ function send_diagnostics(uri: str, error_msg: str, error_line: i32, error_col: 
   print("Content-Length: " + toString(len) + "\r\n\r\n" + json_str);
 }
 
+function get_keyword_completions() -> map<any>[] {
+  let items: map<any>[] = array_new();
+  let keywords: str[] = ["let", "const", "fn", "function", "return", "if", "else", "while", "for", "in", "struct", "Result", "Ok", "Err", "alloc", "free", "cast", "clone", "spawn", "i32", "i64", "f64", "str", "bool", "byte", "void", "ptr", "print", "println", "read_file", "write_file", "toString"];
+  
+  for i in 0..27 {
+    let label: str = keywords[i];
+    let item: map<any> = map_create();
+    map_set(item, "label", label);
+    map_set(item, "kind", 14); // 14 = Keyword in LSP
+    array_push(items, item);
+  }
+  return items;
+}
+
 function handle_message(payload: map<any>) {
   if (payload == null) { return; }
   
@@ -68,8 +82,20 @@ function handle_message(payload: map<any>) {
     let result: map<any> = map_create();
     let caps: map<any> = map_create();
     map_set(caps, "textDocumentSync", 1); // 1 = Full sync
+    
+    let compOpts: map<any> = map_create();
+    map_set(compOpts, "resolveProvider", false);
+    map_set(caps, "completionProvider", compOpts);
+    
     map_set(result, "capabilities", caps);
     send_response(id, result);
+    return;
+  }
+  
+  if (method == "textDocument/completion") {
+    let id: i32 = map_get(payload, "id");
+    let items: map<any>[] = get_keyword_completions();
+    send_response(id, items);
     return;
   }
   
