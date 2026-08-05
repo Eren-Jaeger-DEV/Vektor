@@ -2,22 +2,8 @@ name: Cross-Platform Native CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'src/**'
-      - 'stdlib/**'
-      - 'vks-compiler/**'
-      - 'runtime.c'
-      - '.github/workflows/ci.yml'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'src/**'
-      - 'stdlib/**'
-      - 'vks-compiler/**'
-      - 'runtime.c'
-      - '.github/workflows/ci.yml'
 
 jobs:
   build-and-test:
