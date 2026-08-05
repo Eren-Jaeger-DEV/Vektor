@@ -1,5 +1,0 @@
-import "vks-math-utils";
-
-function main() {
-    print(square(5));
-}

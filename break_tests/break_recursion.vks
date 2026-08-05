@@ -1,7 +1,0 @@
-
-function recurse(n: i32) -> i32 {
-  return recurse(n + 1);
-}
-function main() {
-  recurse(1);
-}
