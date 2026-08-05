@@ -6,7 +6,7 @@ import { Serializer } from "./serializer.js";
 
 export function compileToVM(source: string) {
   const id = randomUUID();
-  const vksPath = resolve(process.cwd(), `test_${id}.vks`);
+  const vksPath = resolve(process.cwd(), `test_${id}.vk`);
   const vkbPath = resolve(process.cwd(), `test_${id}.vkb`);
   
   writeFileSync(vksPath, source);

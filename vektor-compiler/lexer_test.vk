@@ -1,0 +1,13 @@
+import "lexer.vk";
+
+function main() {
+  let source: str = "let x = 42 + 3.14; \n if (x > 10) { print(\"hello\"); }";
+  let lexer: Lexer = lexer_new(source);
+  let head: Token = tokenize(lexer);
+  
+  let curr: Token = head;
+  while (curr != null) {
+    print("Token:", curr.type, " Lexeme: '", curr.lexeme, "' Line:", curr.line);
+    curr = curr.next;
+  }
+}

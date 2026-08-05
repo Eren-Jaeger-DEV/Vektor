@@ -74,7 +74,7 @@ function runVMFile(entrySource: string, entryPath: string) {
   // since compileToVM just takes a single string. Wait! compileToVM writes to a temp file,
   // but it does not support multi-file compilation unless we pass it to `vks compile`.
   // Actually, compileToVM writes the string to a temp file, which is perfectly fine 
-  // because the `import "stdlib/math.vks"` will be resolved relative to `process.cwd()`.
+  // because the `import "stdlib/math.vk"` will be resolved relative to `process.cwd()`.
   const compiledProgram = compileToVM(entrySource);
   const vm = new VM();
   vm.run(compiledProgram);
@@ -94,10 +94,10 @@ describe("Standard Library registry", () => {
   });
 
   it("resolves stdlib imports from project stdlib/", () => {
-    const resolved = resolveImportPath(join(STDLIB_ROOT, "math.vks"), "math.vks");
+    const resolved = resolveImportPath(join(STDLIB_ROOT, "math.vk"), "math.vk");
     expect(existsSync(resolved)).toBe(true);
     expect(resolved).toContain("stdlib");
-    expect(resolved).toContain("math.vks");
+    expect(resolved).toContain("math.vk");
   });
 });
 
@@ -148,7 +148,7 @@ describe("Standard Library (VM)", () => {
   it("string: charAt, indexOf", () => {
     setupMockLog();
     runVM(wrap(`
-      let s: str = "Viktor";
+      let s: str = "Vektor";
       print(charAt(s, 0));
       print(indexOf(s, "k"));
       print(indexOf(s, "z"));
@@ -188,14 +188,14 @@ describe("Standard Library (VM)", () => {
   });
 });
 
-describe("Standard Library (stdlib/*.vks imports)", () => {
+describe("Standard Library (stdlib/*.vk imports)", () => {
   afterEach(() => teardownMockLog());
 
-  it("math.vks: min, max, clamp via import", () => {
+  it("math.vk: min, max, clamp via import", () => {
     setupMockLog();
-    const entry = join(STDLIB_ROOT, "..", "_test_math_main.vks");
+    const entry = join(STDLIB_ROOT, "..", "_test_math_main.vk");
     runVMFile(`
-      import "stdlib/math.vks";
+      import "stdlib/math.vk";
 
       function main() {
         print(min(3, 7));
@@ -208,17 +208,17 @@ describe("Standard Library (stdlib/*.vks imports)", () => {
     assert.deepStrictEqual(output, ["3", "7", "10", "15"]);
   });
 
-  it("string.vks: len, isEmpty, startsWith via import", () => {
+  it("string.vk: len, isEmpty, startsWith via import", () => {
     setupMockLog();
-    const entry = join(STDLIB_ROOT, "..", "_test_string_main.vks");
+    const entry = join(STDLIB_ROOT, "..", "_test_string_main.vk");
     runVMFile(`
-      import "stdlib/string.vks";
+      import "stdlib/string.vk";
 
       function main() {
-        let s: str = "Viktor";
+        let s: str = "Vektor";
         print(len(s));
         print(isEmpty(""));
-        print(startsWith(s, "Vik"));
+        print(startsWith(s, "Vek"));
         print(startsWith(s, "X"));
       }
     `, entry);
@@ -226,11 +226,11 @@ describe("Standard Library (stdlib/*.vks imports)", () => {
     assert.deepStrictEqual(output, ["6", "true", "true", "false"]);
   });
 
-  it("memory.vks: alloc_bytes via import", () => {
+  it("memory.vk: alloc_bytes via import", () => {
     setupMockLog();
-    const entry = join(STDLIB_ROOT, "..", "_test_memory_main.vks");
+    const entry = join(STDLIB_ROOT, "..", "_test_memory_main.vk");
     runVMFile(`
-      import "stdlib/memory.vks";
+      import "stdlib/memory.vk";
 
       function main() {
         let buf: ptr<byte> = alloc_bytes(4);

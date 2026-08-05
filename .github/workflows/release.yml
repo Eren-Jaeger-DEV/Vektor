@@ -14,13 +14,13 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: vks-linux-x64
+            artifact_name: vektor-linux-x64
             archive_ext: .tar.gz
           - os: macos-latest
-            artifact_name: vks-macos-x64
+            artifact_name: vektor-macos-x64
             archive_ext: .tar.gz
           - os: windows-latest
-            artifact_name: vks-windows-x64
+            artifact_name: vektor-windows-x64
             archive_ext: .zip
 
     steps:
@@ -41,7 +41,7 @@ jobs:
         pacman -Sy --noconfirm mingw-w64-x86_64-clang mingw-w64-x86_64-headers mingw-w64-x86_64-crt
 
     - name: Bootstrap Compiler to LLVM IR
-      run: npx tsx src/main.ts compile vks-compiler/main.vks -o vks.ll
+      run: npx tsx src/main.ts compile vektor-compiler/main.vk -o vks.ll
 
     - name: Compile Native Binary (Linux / macOS)
       if: runner.os != 'Windows'

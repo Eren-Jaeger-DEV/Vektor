@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Parser
+// Vektor — Parser
 // ============================================================
 // Recursive descent parser with Pratt-style expression parsing.
 // Converts a flat token stream into an Abstract Syntax Tree (AST).

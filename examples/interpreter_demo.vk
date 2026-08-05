@@ -1,0 +1,172 @@
+// Interpreter Demo — Vektor
+// Exercises every major interpreter feature in one file.
+
+// Struct definition
+struct Player {
+    name: byte[];
+    score: i32;
+    alive: bool;
+}
+
+// A function that returns a Result
+fn get_rank(score: i32) -> Result<byte[], byte[]> {
+    if score < 0 {
+        return Err("Score cannot be negative");
+    }
+    if score >= 90 {
+        return Ok("S Rank");
+    } else if score >= 75 {
+        return Ok("A Rank");
+    } else {
+        return Ok("B Rank");
+    }
+}
+
+// A simple math function
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+// Recursive function
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+function main() {
+    // === Literals and Variables ===
+    print("=== Literals & Variables ===");
+    let age: i32 = 20;
+    let pi: f64 = 3.14159;
+    let alive: bool = true;
+    let initial: byte = 'V';
+    const MAX_PLAYERS: i32 = 100;
+
+    print(age);
+    print(pi);
+    print(alive);
+    print(MAX_PLAYERS);
+
+    // === String operations ===
+    print("=== Strings ===");
+    let name: str = "Vektor";
+    let length: i32 = name.len;
+    print(name);
+    print(length);
+
+    // === Arithmetic ===
+    print("=== Arithmetic ===");
+    print(add(10, 20));
+    print(10 + 5 * 2);
+    print(100 / 3);
+    print(100 % 7);
+
+    // === Boolean logic ===
+    print("=== Boolean Logic ===");
+    if age >= 18 && alive {
+        print("Adult and alive");
+    }
+    if age < 10 or !alive {
+        print("This should not print");
+    }
+
+    // === Nullable types ===
+    print("=== Nullable ===");
+    let y: i32? = null;
+    if y != null {
+        print("y has a value");
+    } else {
+        print("y is null");
+    }
+
+    // === Structs ===
+    print("=== Structs ===");
+    let p: Player = Player { name: "Vektor", score: 95, alive: true };
+    print(p.name);
+    print(p.score);
+
+    // === Result handling ===
+    print("=== Results ===");
+    let rank = get_rank(p.score);
+    if rank.ok {
+        print(rank.value);
+    } else {
+        print(rank.error);
+    }
+
+    let bad_rank = get_rank(-5);
+    if bad_rank.ok {
+        print(bad_rank.value);
+    } else {
+        print(bad_rank.error);
+    }
+
+    // === Loops ===
+    print("=== While Loop ===");
+    let i: i32 = 0;
+    while i < 5 {
+        print(i);
+        i = i + 1;
+    }
+
+    print("=== For Loop ===");
+    for (let j: i32 = 0; j < 5; j++) {
+        print(j);
+    }
+
+    print("=== For-In Loop ===");
+    for k in 0..5 {
+        print(k);
+    }
+
+    // === Arrays ===
+    print("=== Arrays ===");
+    let scores: i32[5] = [10, 20, 30, 40, 50];
+    print(scores[0]);
+    print(scores[4]);
+    scores[2] = 999;
+    print(scores[2]);
+
+    // === Type Casting ===
+    print("=== Casting ===");
+    let a: f32 = 3.14;
+    let b: i32 = cast<i32>(a);
+    print(b);
+
+    let c: i32 = 42;
+    let d: f64 = cast<f64>(c);
+    print(d);
+
+    // === Pointers & Memory ===
+    print("=== Pointers ===");
+    let val: i32 = 42;
+    let ptr_val: ptr<i32> = &val;
+    let deref: i32 = *ptr_val;
+    print(deref);
+
+    print("=== Heap Memory ===");
+    let buffer: ptr<byte> = alloc(256);
+    buffer[0] = 'V';
+    buffer[1] = 'K';
+    buffer[2] = 'S';
+    print(buffer[0]);
+    print(buffer[1]);
+    print(buffer[2]);
+    free(buffer);
+
+    // === Recursion ===
+    print("=== Recursion ===");
+    print(factorial(5));
+    print(factorial(10));
+
+    // === Ownership (clone) ===
+    print("=== Clone ===");
+    let original: str = "Vektor";
+    let copy: str = clone(original);
+    print(original);
+    print(copy);
+
+    print("=== Done ===");
+}

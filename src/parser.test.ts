@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Parser Tests
+// Vektor — Parser Tests
 // ============================================================
 // Test suite covering AST node generation, expression precedence,
 // statements, declarations, and error recovery.
@@ -162,10 +162,10 @@ describe("Parser - Statements", () => {
 
 describe("Parser - Declarations", () => {
   it("parses import declaration", () => {
-    const result = parse('import "io.vks";');
+    const result = parse('import "io.vk";');
     expect(result.errors.length).toBe(0);
     expect(result.program.imports.length).toBe(1);
-    expect(result.program.imports[0].path).toBe("io.vks");
+    expect(result.program.imports[0].path).toBe("io.vk");
   });
 
   it("parses struct declaration", () => {
@@ -252,10 +252,10 @@ describe("Parser - Types", () => {
 // ── Full Programs ────────────────────────────────────────────
 
 describe("Parser - Full Programs", () => {
-  it("parses the hello.vks example without errors", () => {
+  it("parses the hello.vk example without errors", () => {
     const code = `
       function main() {
-          print("Hello from Viktor Script");
+          print("Hello from Vektor");
       }
     `;
     const result = parse(code);

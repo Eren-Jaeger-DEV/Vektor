@@ -24,8 +24,8 @@ jobs:
     - name: Install dependencies
       run: npm install
 
-    - name: Bootstrapping Compiler (Compile test_http.vks to LLVM IR)
-      run: npx tsx src/main.ts test_http.vks --llvm -o test_http.ll
+    - name: Bootstrapping Compiler (Compile test_http.vk to LLVM IR)
+      run: npx tsx src/main.ts test_http.vk --llvm -o test_http.ll
 
     - name: Compile Native Binary (Linux / macOS)
       if: runner.os != 'Windows'
@@ -68,17 +68,17 @@ jobs:
       if: runner.os != 'Windows'
       run: |
         # 1. Bootstrapping VKS native binary using TS
-        npx tsx src/main.ts vks-compiler/main.vks --llvm -o main.ll
+        npx tsx src/main.ts vektor-compiler/main.vk --llvm -o main.ll
         clang main.ll runtime.c -o vks -pthread
         
         # 2. Testing VKS native binary
-        ./vks compile test_hello.vks -o test_hello.ll
+        ./vks compile test_hello.vk -o test_hello.ll
         clang test_hello.ll runtime.c -o test_hello -pthread
         ./test_hello
         
         # 3. The Real Self-Hosting Test (vks compiling vks)
-        ./vks compile vks-compiler/main.vks -o vks2.ll
+        ./vks compile vektor-compiler/main.vk -o vks2.ll
         clang vks2.ll runtime.c -o vks2 -pthread
-        ./vks2 compile test_hello.vks -o test_hello2.ll
+        ./vks2 compile test_hello.vk -o test_hello2.ll
         clang test_hello2.ll runtime.c -o test_hello2 -pthread
         ./test_hello2

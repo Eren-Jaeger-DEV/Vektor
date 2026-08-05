@@ -1,0 +1,5 @@
+// stdlib/io.vk — I/O builtins (native)
+// Native functions: print, toString, readLine, read_file, write_file, parseFloat
+// These are registered by the runtime; import this module to declare the dependency.
+
+const STDLIB_IO_VERSION: i32 = 1;

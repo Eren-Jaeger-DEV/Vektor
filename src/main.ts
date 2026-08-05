@@ -1,7 +1,7 @@
 // ============================================================
-// Viktor Script — CLI Entry Point
+// Vektor — CLI Entry Point
 // ============================================================
-// Reads a .vks source file, runs the lexer, parser, and
+// Reads a .vk source file, runs the lexer, parser, and
 // optionally the interpreter or VM.
 //
 // Usage: npx tsx src/main.ts <file> [options]
@@ -40,7 +40,7 @@ if (args[0] === "init" || args[0] === "install" || args[0] === "compile" || args
 }
 
 if (args.length === 0) {
-  console.log("Viktor Script v0.2.0");
+  console.log("Vektor v0.2.0");
   console.log("Usage: npx tsx src/main.ts <file> [options]");
   console.log("");
   console.log("Options:");
@@ -111,7 +111,7 @@ if (execBinary) {
 
      console.log("");
      console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
-     console.log(`  ║  Viktor Script Virtual Machine                             ║`);
+     console.log(`  ║  Vektor Virtual Machine                             ║`);
      console.log(`  ║  Binary: ${resolvedPath.length > 50 ? "..." + resolvedPath.slice(-47) : resolvedPath.padEnd(50)} ║`);
      console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
      console.log("");
@@ -209,7 +209,7 @@ else {
   } else if (!runInterpreter && !runAstInterpreter && !runCompiler && !runParser && !outputFile) {
      console.log("");
      console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
-     console.log(`  ║  Viktor Script Lexer                                       ║`);
+     console.log(`  ║  Vektor Lexer                                       ║`);
      console.log(`  ║  File: ${resolvedPath.length > 52 ? "..." + resolvedPath.slice(-49) : resolvedPath.padEnd(52)} ║`);
      console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
      console.log("");
@@ -308,7 +308,7 @@ else {
         console.log(JSON.stringify({ ast: monoProgram, errors: allParseErrors }, null, 2));
       } else {
         console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
-        console.log(`  ║  Viktor Script Parser (Merged AST)                         ║`);
+        console.log(`  ║  Vektor Parser (Merged AST)                         ║`);
         console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
         console.log("");
 
@@ -354,7 +354,7 @@ else {
         const compiledProgram = serializer.deserialize(buffer);
 
         console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
-        console.log(`  ║  Viktor Script Compiler (Self-Hosted)                        ║`);
+        console.log(`  ║  Vektor Compiler (Self-Hosted)                        ║`);
         console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
         console.log("");
 
@@ -393,8 +393,8 @@ else {
       if (!runParser && !runCompiler) {
         console.log("");
         console.log(`  ╔══════════════════════════════════════════════════════════════╗`);
-        if (runAstInterpreter) console.log(`  ║  Viktor Script AST Interpreter                             ║`);
-        else console.log(`  ║  Viktor Script Virtual Machine                             ║`);
+        if (runAstInterpreter) console.log(`  ║  Vektor AST Interpreter                             ║`);
+        else console.log(`  ║  Vektor Virtual Machine                             ║`);
         console.log(`  ║  File: ${resolvedPath.length > 52 ? "..." + resolvedPath.slice(-49) : resolvedPath.padEnd(52)} ║`);
         console.log(`  ╚══════════════════════════════════════════════════════════════╝`);
         console.log("");

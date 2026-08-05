@@ -1,8 +1,8 @@
 // ============================================================
-// Viktor Script — Lexer
+// Vektor — Lexer
 // ============================================================
 // Single-pass, character-by-character scanner that converts
-// raw .vks source text into a stream of typed tokens.
+// raw .vk source text into a stream of typed tokens.
 // ============================================================
 
 import { Token, TokenType, KEYWORDS } from "./tokens.js";
@@ -19,7 +19,7 @@ export interface LexResult {
 }
 
 /**
- * Lexer for Viktor Script source code.
+ * Lexer for Vektor source code.
  *
  * Usage:
  * ```ts

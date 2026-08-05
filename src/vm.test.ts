@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — VM Tests
+// Vektor — VM Tests
 // ============================================================
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

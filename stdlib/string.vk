@@ -1,0 +1,19 @@
+// stdlib/string.vk — String builtins (native)
+// Native functions: charAt, indexOf, toUpper, toLower, trim, substring, parseI32
+
+const STDLIB_STRING_VERSION: i32 = 1;
+
+fn len(s: str) -> i32 {
+  return s.len;
+}
+
+fn isEmpty(s: str) -> bool {
+  return s.len == 0;
+}
+
+fn startsWith(s: str, prefix: str) -> bool {
+  if prefix.len > s.len {
+    return false;
+  }
+  return indexOf(s, prefix) == 0;
+}

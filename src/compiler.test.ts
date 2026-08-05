@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Bytecode Compiler Tests
+// Vektor — Bytecode Compiler Tests
 // ============================================================
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -44,7 +44,7 @@ function compileVKS(source: string, tempVksPath: string, tempVkbPath: string) {
 }
 
 describe("Self-Hosted VKS Compiler", () => {
-  const tempVks = resolve(process.cwd(), "test_temp.vks");
+  const tempVks = resolve(process.cwd(), "test_temp.vk");
   const tempVkb = resolve(process.cwd(), "test_temp.vkb");
 
   afterEach(() => {

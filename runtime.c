@@ -15,29 +15,29 @@
 #include <string.h>
 #include <stdlib.h>
 
-void vks_print_i32(int x) { 
+void vk_print_i32(int x) { 
     printf("%d\n", x); 
     fflush(stdout);
 }
 
-void vks_print_f64(double x) { 
+void vk_print_f64(double x) { 
     printf("%f\n", x); 
     fflush(stdout);
 }
 
-void vks_print_str(char* s, long len) { 
+void vk_print_str(char* s, long len) { 
     fwrite(s, 1, len, stdout); 
     printf("\n"); 
     fflush(stdout);
 }
 
-void vks_print_bool(int x) { 
+void vk_print_bool(int x) { 
     if (x) printf("true\n"); 
     else printf("false\n"); 
     fflush(stdout);
 }
 
-double vks_sqrt(double x) { 
+double vk_sqrt(double x) { 
     // basic sqrt placeholder if math.h is annoying
     double z = 1.0;
     for(int i=0; i<10; i++) {
@@ -48,25 +48,25 @@ double vks_sqrt(double x) {
 
 // ── Call Stack ────────────────────────────────────────────────
 #define MAX_CALL_STACK 256
-const char* vks_call_stack[MAX_CALL_STACK];
-int vks_stack_ptr = 0;
+const char* vk_call_stack[MAX_CALL_STACK];
+int vk_stack_ptr = 0;
 
-void vks_push_frame(const char* name) {
-    if (vks_stack_ptr < MAX_CALL_STACK) {
-        vks_call_stack[vks_stack_ptr++] = name;
+void vk_push_frame(const char* name) {
+    if (vk_stack_ptr < MAX_CALL_STACK) {
+        vk_call_stack[vk_stack_ptr++] = name;
     }
 }
 
-void vks_pop_frame() {
-    if (vks_stack_ptr > 0) {
-        vks_stack_ptr--;
+void vk_pop_frame() {
+    if (vk_stack_ptr > 0) {
+        vk_stack_ptr--;
     }
 }
 
 void vks_panic(const char* msg) {
     fprintf(stderr, "\n  ✗ Native Runtime Panic: %s\nStack trace:\n", msg);
-    for (int i = vks_stack_ptr - 1; i >= 0; i--) {
-        fprintf(stderr, "  at %s\n", vks_call_stack[i]);
+    for (int i = vk_stack_ptr - 1; i >= 0; i--) {
+        fprintf(stderr, "  at %s\n", vk_call_stack[i]);
     }
     fprintf(stderr, "\n");
     exit(1);
@@ -303,7 +303,7 @@ vks_string vks_str_replace(vks_string s, vks_string find, vks_string rep) {
     return ret;
 }
 
-void vks_free_str_array(vks_array_str arr) {
+void vk_free_str_array(vks_array_str arr) {
     if (arr.data != NULL) {
         for (int i = 0; i < arr.length; i++) {
             if (arr.data[i].data != NULL) free(arr.data[i].data);

@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — AST Printer
+// Vektor — AST Printer
 // ============================================================
 // Utility to print the AST into a readable string tree format.
 // Useful for debugging the parser output.

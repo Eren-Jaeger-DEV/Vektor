@@ -1,9 +1,0 @@
-struct TestStruct {
-  val: i32;
-}
-
-function main() {
-  let s: TestStruct = TestStruct { val: 10 };
-  s.val = s.val + 5;
-  print(s.val);
-}

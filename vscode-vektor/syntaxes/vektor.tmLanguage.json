@@ -1,0 +1,99 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "VektorScript",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#functions"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.vk",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.vk",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.vk",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.vk",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.vk",
+          "match": "\\b(if|else|while|for|in|return|break|spawn)\\b"
+        },
+        {
+          "name": "keyword.declaration.vk",
+          "match": "\\b(fn|let|const|struct|enum|union)\\b"
+        },
+        {
+          "name": "keyword.other.vk",
+          "match": "\\b(import|export)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.vk",
+          "match": "\\b(i8|i16|i32|i64|f32|f64|byte|bool|str|void|Result|ptr|map|string|int)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.vk",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "name": "constant.numeric.vk",
+          "match": "\\b\\d+(\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.vk"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "scopeName": "source.vk"
+}

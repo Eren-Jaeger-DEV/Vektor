@@ -1,5 +1,0 @@
-function main() {
-  let m: map<i32> = map_create();
-  map_set(m, "hello", 42);
-  print(map_get(m, "hello"));
-}

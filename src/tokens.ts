@@ -1,12 +1,12 @@
 // ============================================================
-// Viktor Script — Token Types
+// Vektor — Token Types
 // ============================================================
-// Every token the lexer can produce. Derived from the Viktor
+// Every token the lexer can produce. Derived from the Vektor
 // Script Language Specification v0.2.
 // ============================================================
 
 /**
- * All possible token types in Viktor Script.
+ * All possible token types in Vektor.
  */
 export enum TokenType {
   // ── Literals ──────────────────────────────────────────────

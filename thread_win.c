@@ -8,7 +8,7 @@ typedef struct {
     void* packed_args;
 } ThreadData;
 
-DWORD WINAPI VksThreadProc(LPVOID lpParam) {
+DWORD WINAPI VkThreadProc(LPVOID lpParam) {
     ThreadData* data = (ThreadData*)lpParam;
     // Call the wrapper function which will unpack arguments, call the real function, and free packed_args
     data->wrapper_fn(data->packed_args);
@@ -25,7 +25,7 @@ void* sys_thread_create(void* wrapper_fn, void* packed_args) {
     HANDLE hThread = CreateThread(
         NULL,                   // default security attributes
         0,                      // use default stack size  
-        VksThreadProc,          // thread function name
+        VkThreadProc,          // thread function name
         data,                   // argument to thread function 
         0,                      // use default creation flags 
         NULL);                  // returns the thread identifier 

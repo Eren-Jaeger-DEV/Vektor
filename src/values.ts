@@ -1,7 +1,7 @@
 // ============================================================
-// Viktor Script — Runtime Values
+// Vektor — Runtime Values
 // ============================================================
-// Every runtime value in Viktor Script is represented as one
+// Every runtime value in Vektor is represented as one
 // of these tagged types. The interpreter works exclusively
 // with VKSValue instances.
 // ============================================================

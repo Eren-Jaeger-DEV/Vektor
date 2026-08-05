@@ -1,7 +1,7 @@
 // ============================================================
-// Viktor Script — Virtual Machine
+// Vektor — Virtual Machine
 // ============================================================
-// Executes compiled Viktor Script bytecode.
+// Executes compiled Vektor bytecode.
 // Features a flat operand stack, call frames for functions,
 // a simple heap for dynamic allocations, and a fast loop.
 // ============================================================

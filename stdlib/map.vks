@@ -1,4 +1,0 @@
-// stdlib/map.vks — Map builtins (native)
-// Native functions: map_create, map_set, map_get, map_has, map_delete
-
-const STDLIB_MAP_VERSION: i32 = 1;

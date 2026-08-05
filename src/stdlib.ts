@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Standard Library (Phase 6)
+// Vektor — Standard Library (Phase 6)
 // ============================================================
 // Single registry for all native builtins. Both the tree-walking
 // interpreter and the bytecode VM register functions from here.
@@ -25,12 +25,12 @@ export const STDLIB_ROOT = resolve(__dirname, "..", "stdlib");
 
 /** Known stdlib module files. */
 export const STDLIB_MODULES = [
-  "io.vks",
-  "math.vks",
-  "string.vks",
-  "os.vks",
-  "memory.vks",
-  "map.vks",
+  "io.vk",
+  "math.vk",
+  "string.vk",
+  "os.vk",
+  "memory.vk",
+  "map.vk",
 ] as const;
 
 export type StdlibModule = (typeof STDLIB_MODULES)[number];
@@ -51,13 +51,13 @@ export function resolveImportPath(currentFile: string, importPath: string, proje
   const stdlibDirect = resolve(STDLIB_ROOT, importPath);
   if (existsSync(stdlibDirect)) return stdlibDirect;
 
-  // Allow `import "io.vks"` → stdlib/io.vks
+  // Allow `import "io.vk"` → stdlib/io.vk
   const baseName = importPath.replace(/^.*[/\\]/, "");
   const stdlibByName = resolve(STDLIB_ROOT, baseName);
   if (existsSync(stdlibByName)) return stdlibByName;
 
   // Package manager resolution
-  const packageName = importPath.replace(/\.vks$/, "");
+  const packageName = importPath.replace(/\.vk$/, "");
   try {
     return resolvePackageEntry(projectRoot, packageName);
   } catch (e) {
@@ -67,20 +67,20 @@ export function resolveImportPath(currentFile: string, importPath: string, proje
 }
 
 export function resolvePackageEntry(projectRoot: string, packageName: string): string {
-  const pkgDir = resolve(projectRoot, "vks_modules", packageName);
-  const pkgManifestPath = resolve(pkgDir, "viktor.json");
+  const pkgDir = resolve(projectRoot, "vk_modules", packageName);
+  const pkgManifestPath = resolve(pkgDir, "vektor.json");
 
   if (existsSync(pkgManifestPath)) {
     const pkgManifest = JSON.parse(readFileSync(pkgManifestPath, "utf-8"));
     return resolve(pkgDir, pkgManifest.entry);
   }
 
-  // Fallback convention if the package has no manifest: look for index.vks
-  const fallback = resolve(pkgDir, "index.vks");
+  // Fallback convention if the package has no manifest: look for index.vk
+  const fallback = resolve(pkgDir, "index.vk");
   if (existsSync(fallback)) return fallback;
 
   throw new Error(
-    `Cannot resolve package "${packageName}" — no viktor.json or index.vks found in ${pkgDir}`
+    `Cannot resolve package "${packageName}" — no vektor.json or index.vk found in ${pkgDir}`
   );
 }
 
@@ -95,58 +95,58 @@ export interface BuiltinSpec {
 /** Every native builtin name (used to prevent user shadowing warnings, etc.). */
 export const BUILTIN_SPECS: BuiltinSpec[] = [
   // io
-  { name: "print",      module: "io.vks",     arity: -1 },
-  { name: "toString",   module: "io.vks",     arity: 1 },
-  { name: "readLine",   module: "io.vks",     arity: 0 },
-  { name: "read_file",  module: "io.vks",     arity: 1 },
-  { name: "write_file", module: "io.vks",     arity: 2 },
-  { name: "parseFloat", module: "io.vks",     arity: 1 },
-  { name: "array_new",      module: "io.vks", arity: 0 },
-  { name: "array_push",     module: "io.vks", arity: 2 },
-  { name: "array_length",   module: "io.vks", arity: 1 },
-  { name: "array_push_u16", module: "io.vks", arity: 2 },
-  { name: "array_push_u32", module: "io.vks", arity: 2 },
-  { name: "array_push_i32", module: "io.vks", arity: 2 },
-  { name: "array_push_f64", module: "io.vks", arity: 2 },
-  { name: "array_push_str", module: "io.vks", arity: 2 },
-  { name: "write_binary",   module: "io.vks", arity: 2 },
-  { name: "args_count",     module: "sys.vks", arity: 0 },
-  { name: "args_get",       module: "sys.vks", arity: 1 },
-  { name: "resolve_import", module: "sys.vks", arity: 2 },
-  { name: "mkdir",          module: "sys.vks", arity: 1 },
-  { name: "file_exists",    module: "sys.vks", arity: 1 },
-  { name: "list_dir",       module: "sys.vks", arity: 1 },
-  { name: "shell_exec",     module: "sys.vks", arity: 1 },
-  { name: "parse_json",     module: "sys.vks", arity: 1 },
-  { name: "stringify_json", module: "sys.vks", arity: 1 },
-  { name: "system",         module: "sys.vks", arity: 1 },
+  { name: "print",      module: "io.vk",     arity: -1 },
+  { name: "toString",   module: "io.vk",     arity: 1 },
+  { name: "readLine",   module: "io.vk",     arity: 0 },
+  { name: "read_file",  module: "io.vk",     arity: 1 },
+  { name: "write_file", module: "io.vk",     arity: 2 },
+  { name: "parseFloat", module: "io.vk",     arity: 1 },
+  { name: "array_new",      module: "io.vk", arity: 0 },
+  { name: "array_push",     module: "io.vk", arity: 2 },
+  { name: "array_length",   module: "io.vk", arity: 1 },
+  { name: "array_push_u16", module: "io.vk", arity: 2 },
+  { name: "array_push_u32", module: "io.vk", arity: 2 },
+  { name: "array_push_i32", module: "io.vk", arity: 2 },
+  { name: "array_push_f64", module: "io.vk", arity: 2 },
+  { name: "array_push_str", module: "io.vk", arity: 2 },
+  { name: "write_binary",   module: "io.vk", arity: 2 },
+  { name: "args_count",     module: "sys.vk", arity: 0 },
+  { name: "args_get",       module: "sys.vk", arity: 1 },
+  { name: "resolve_import", module: "sys.vk", arity: 2 },
+  { name: "mkdir",          module: "sys.vk", arity: 1 },
+  { name: "file_exists",    module: "sys.vk", arity: 1 },
+  { name: "list_dir",       module: "sys.vk", arity: 1 },
+  { name: "shell_exec",     module: "sys.vk", arity: 1 },
+  { name: "parse_json",     module: "sys.vk", arity: 1 },
+  { name: "stringify_json", module: "sys.vk", arity: 1 },
+  { name: "system",         module: "sys.vk", arity: 1 },
   // math
-  { name: "sqrt",       module: "math.vks",   arity: 1 },
-  { name: "pow",        module: "math.vks",   arity: 2 },
-  { name: "sin",        module: "math.vks",   arity: 1 },
-  { name: "cos",        module: "math.vks",   arity: 1 },
-  { name: "abs",        module: "math.vks",   arity: 1 },
-  { name: "floor",      module: "math.vks",   arity: 1 },
-  { name: "ceil",       module: "math.vks",   arity: 1 },
+  { name: "sqrt",       module: "math.vk",   arity: 1 },
+  { name: "pow",        module: "math.vk",   arity: 2 },
+  { name: "sin",        module: "math.vk",   arity: 1 },
+  { name: "cos",        module: "math.vk",   arity: 1 },
+  { name: "abs",        module: "math.vk",   arity: 1 },
+  { name: "floor",      module: "math.vk",   arity: 1 },
+  { name: "ceil",       module: "math.vk",   arity: 1 },
   // string
-  { name: "charAt",     module: "string.vks", arity: 2 },
-  { name: "indexOf",    module: "string.vks", arity: 2 },
-  { name: "toUpper",    module: "string.vks", arity: 1 },
-  { name: "toLower",    module: "string.vks", arity: 1 },
-  { name: "trim",       module: "string.vks", arity: 1 },
-  { name: "substring",  module: "string.vks", arity: 3 },
-  { name: "str_length", module: "string.vks", arity: 1 },
-  { name: "parseI32",   module: "string.vks", arity: 1 },
+  { name: "charAt",     module: "string.vk", arity: 2 },
+  { name: "indexOf",    module: "string.vk", arity: 2 },
+  { name: "toUpper",    module: "string.vk", arity: 1 },
+  { name: "toLower",    module: "string.vk", arity: 1 },
+  { name: "trim",       module: "string.vk", arity: 1 },
+  { name: "substring",  module: "string.vk", arity: 3 },
+  { name: "str_length", module: "string.vk", arity: 1 },
+  { name: "parseI32",   module: "string.vk", arity: 1 },
   // os
-  { name: "time",       module: "os.vks",     arity: 0 },
-  { name: "exit",       module: "os.vks",     arity: 1 },
+  { name: "time",       module: "os.vk",     arity: 0 },
+  { name: "exit",       module: "os.vk",     arity: 1 },
   // map
-  { name: "map_create", module: "map.vks",    arity: 0 },
-  { name: "map_set",    module: "map.vks",    arity: 3 },
-  { name: "map_get",    module: "map.vks",    arity: 2 },
-  { name: "map_has",    module: "map.vks",    arity: 2 },
-  { name: "map_delete", module: "map.vks",    arity: 2 },
-  { name: "map_keys",   module: "map.vks",    arity: 1 },
+  { name: "map_create", module: "map.vk",    arity: 0 },
+  { name: "map_set",    module: "map.vk",    arity: 3 },
+  { name: "map_get",    module: "map.vk",    arity: 2 },
+  { name: "map_has",    module: "map.vk",    arity: 2 },
+  { name: "map_delete", module: "map.vk",    arity: 2 },
+  { name: "map_keys",   module: "map.vk",    arity: 1 },
 ];
 
 export const BUILTIN_NAMES = new Set(BUILTIN_SPECS.map((s) => s.name));

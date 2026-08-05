@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Lexer Tests
+// Vektor — Lexer Tests
 // ============================================================
 // Comprehensive test suite covering all token types, edge
 // cases, error handling, and full program tokenization.
@@ -652,7 +652,7 @@ describe("Lexer", () => {
     });
 
     it("should tokenize import statement", () => {
-      const result = types('import "math.vks";');
+      const result = types('import "math.vk";');
       expect(result).toEqual([
         TokenType.IMPORT,
         TokenType.STRING_LITERAL,
@@ -804,7 +804,7 @@ describe("Lexer", () => {
     it("should tokenize hello world without errors", () => {
       const source = `
 function main() {
-    print("Hello from Viktor Script");
+    print("Hello from Vektor");
 }`;
       const { tokens, errors } = lex(source);
       expect(errors).toEqual([]);

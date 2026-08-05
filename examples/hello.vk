@@ -1,0 +1,6 @@
+// Hello World — Vektor
+// The simplest valid VKS program.
+
+function main() {
+    print("Hello from Vektor");
+}

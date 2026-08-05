@@ -8,7 +8,7 @@ typedef struct {
     void* packed_args;
 } ThreadData;
 
-void* VksThreadProc(void* arg) {
+void* VkThreadProc(void* arg) {
     ThreadData* data = (ThreadData*)arg;
     // Call the wrapper function which will unpack arguments, call the real function, and free packed_args
     data->wrapper_fn(data->packed_args);
@@ -23,7 +23,7 @@ void* sys_thread_create(void* wrapper_fn, void* packed_args) {
     data->packed_args = packed_args;
 
     pthread_t* thread = (pthread_t*)malloc(sizeof(pthread_t));
-    if (pthread_create(thread, NULL, VksThreadProc, data) != 0) {
+    if (pthread_create(thread, NULL, VkThreadProc, data) != 0) {
         fprintf(stderr, "Fatal Error: sys_thread_create failed to create thread.\n");
         free(thread);
         free(data);

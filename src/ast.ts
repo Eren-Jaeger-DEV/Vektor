@@ -1,7 +1,7 @@
 // ============================================================
-// Viktor Script — Abstract Syntax Tree (AST)
+// Vektor — Abstract Syntax Tree (AST)
 // ============================================================
-// Defines all node types for the Viktor Script AST.
+// Defines all node types for the Vektor AST.
 // ============================================================
 
 import { Token } from "./tokens.js";

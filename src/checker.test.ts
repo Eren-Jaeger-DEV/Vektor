@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Type Checker Tests
+// Vektor — Type Checker Tests
 // ============================================================
 
 import { describe, it, expect } from "vitest";

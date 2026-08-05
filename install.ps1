@@ -1,9 +1,9 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Downloading Viktor Script..." -ForegroundColor Cyan
+Write-Host "Downloading Vektor..." -ForegroundColor Cyan
 
-$Release = "vks-windows-x64.zip"
-$InstallDir = Join-Path $env:USERPROFILE ".vks"
+$Release = "vektor-windows-x64.zip"
+$InstallDir = Join-Path $env:USERPROFILE ".vk"
 $DownloadUrl = "https://github.com/Eren-Jaeger-DEV/VKS/releases/latest/download/$Release"
 $ZipPath = Join-Path $InstallDir $Release
 
@@ -18,7 +18,7 @@ Write-Host "Extracting archive..."
 Expand-Archive -Path $ZipPath -DestinationPath $InstallDir -Force
 Remove-Item $ZipPath
 
-Write-Host "Viktor Script has been installed to $InstallDir" -ForegroundColor Green
+Write-Host "Vektor has been installed to $InstallDir" -ForegroundColor Green
 
 # Add to PATH
 $BinDir = Join-Path $InstallDir "bin"
@@ -31,6 +31,6 @@ if (-not $HasPath) {
     [Environment]::SetEnvironmentVariable("PATH", $NewPath, "User")
 }
 
-[Environment]::SetEnvironmentVariable("VKS_HOME", $InstallDir, "User")
+[Environment]::SetEnvironmentVariable("VEKTOR_HOME", $InstallDir, "User")
 
-Write-Host "Installation Complete! Please restart your terminal and try running 'vks'" -ForegroundColor Cyan
+Write-Host "Installation Complete! Please restart your terminal and try running 'vektor'" -ForegroundColor Cyan

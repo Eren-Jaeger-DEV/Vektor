@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Bytecode Disassembler
+// Vektor — Bytecode Disassembler
 // ============================================================
 // Produces human-readable output from compiled bytecode.
 // Shows offset, opcode name, operands, and annotations.
@@ -24,7 +24,7 @@ export class Disassembler {
 
     // Header
     this.line("╔══════════════════════════════════════════════════════════════╗");
-    this.line("║  Viktor Script Bytecode Disassembly                        ║");
+    this.line("║  Vektor Bytecode Disassembly                        ║");
     this.line("╚══════════════════════════════════════════════════════════════╝");
     this.line("");
 

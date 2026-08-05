@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Error Types
+// Vektor — Error Types
 // ============================================================
 // Error types for all compiler phases. Errors are collected
 // where possible so the user gets all issues in a single pass.

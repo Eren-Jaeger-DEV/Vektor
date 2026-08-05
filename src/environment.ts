@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Environment (Scope & Variables)
+// Vektor — Environment (Scope & Variables)
 // ============================================================
 // A chain of scoped symbol tables for variable resolution.
 // Each block/function creates a child environment that can see

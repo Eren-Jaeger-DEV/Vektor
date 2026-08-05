@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Static Type Checker (Semantic Analysis)
+// Vektor — Static Type Checker (Semantic Analysis)
 // ============================================================
 // Performs static type checking on the Abstract Syntax Tree (AST).
 // Validates variable declarations, function parameters/returns,

@@ -1,12 +1,12 @@
 // ============================================================
-// Viktor Script — Bytecode Opcodes
+// Vektor — Bytecode Opcodes
 // ============================================================
 // Every instruction the bytecode compiler can emit.
 // Each opcode is a single byte. Operands follow inline.
 // ============================================================
 
 /**
- * All bytecode opcodes for the Viktor Script VM.
+ * All bytecode opcodes for the Vektor VM.
  * Values are assigned explicitly for stability across versions.
  */
 export enum Op {

@@ -1,8 +1,8 @@
 // ============================================================
-// Viktor Script — Interpreter Tests (Phase 3)
+// Vektor — Interpreter Tests (Phase 3)
 // ============================================================
 // Tests the tree-walking interpreter against all language
-// features defined in the Viktor Script specification.
+// features defined in the Vektor specification.
 // ============================================================
 
 import { describe, it, expect } from "vitest";
@@ -14,7 +14,7 @@ import { RuntimeError } from "./errors.js";
 // ── Test Helpers ─────────────────────────────────────────────
 
 /**
- * Run a Viktor Script program and return captured output lines.
+ * Run a Vektor program and return captured output lines.
  */
 function run(source: string): string[] {
   const lexer = new Lexer(source);
@@ -164,7 +164,7 @@ describe("Interpreter", () => {
     });
 
     it("string .len field", () => {
-      const out = run(wrap(`let s: str = "Viktor"; print(s.len);`));
+      const out = run(wrap(`let s: str = "Vektor"; print(s.len);`));
       expect(out).toEqual(["6"]);
     });
 
@@ -305,9 +305,9 @@ describe("Interpreter", () => {
     it("void function", () => {
       const out = run(`
         fn greet(name: byte[]) { print(name); }
-        function main() { greet("Viktor"); }
+        function main() { greet("Vektor"); }
       `);
-      expect(out).toEqual(["Viktor"]);
+      expect(out).toEqual(["Vektor"]);
     });
 
     it("recursive function (factorial)", () => {
@@ -373,12 +373,12 @@ describe("Interpreter", () => {
       const out = run(`
         struct Player { name: byte[]; score: i32; }
         function main() {
-          let p: Player = Player { name: "Viktor", score: 95 };
+          let p: Player = Player { name: "Vektor", score: 95 };
           print(p.name);
           print(p.score);
         }
       `);
-      expect(out).toEqual(["Viktor", "95"]);
+      expect(out).toEqual(["Vektor", "95"]);
     });
   });
 
@@ -694,14 +694,14 @@ describe("Interpreter", () => {
   // ── Full Programs ──────────────────────────────────────────
 
   describe("Full programs", () => {
-    it("hello.vks produces correct output", () => {
+    it("hello.vk produces correct output", () => {
       const source = `
         function main() {
-          print("Hello from Viktor Script");
+          print("Hello from Vektor");
         }
       `;
       const out = run(source);
-      expect(out).toEqual(["Hello from Viktor Script"]);
+      expect(out).toEqual(["Hello from Vektor"]);
     });
 
     it("complex program with structs and results", () => {
@@ -716,7 +716,7 @@ describe("Interpreter", () => {
         }
 
         function main() {
-          let p: Player = Player { name: "Viktor", score: 95, alive: true };
+          let p: Player = Player { name: "Vektor", score: 95, alive: true };
           print(p.name);
 
           let rank = get_rank(p.score);
@@ -724,7 +724,7 @@ describe("Interpreter", () => {
           else { print(rank.error); }
         }
       `);
-      expect(out).toEqual(["Viktor", "S Rank"]);
+      expect(out).toEqual(["Vektor", "S Rank"]);
     });
 
     it("fibonacci", () => {

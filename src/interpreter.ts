@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Tree-Walking Interpreter
+// Vektor — Tree-Walking Interpreter
 // ============================================================
 // Evaluates the AST produced by the parser. Walks each node
 // and produces runtime values, executing the program.
@@ -87,11 +87,11 @@ export class Interpreter {
     try {
       mainFn = this.globalEnv.get("main");
     } catch {
-      throw new RuntimeError(1, 1, "No 'main' function found. Every Viktor Script program must have a main() function.");
+      throw new RuntimeError(1, 1, "No 'main' function found. Every Vektor program must have a main() function.");
     }
 
     if (!isCallable(mainFn)) {
-      throw new RuntimeError(1, 1, "No 'main' function found. Every Viktor Script program must have a main() function.");
+      throw new RuntimeError(1, 1, "No 'main' function found. Every Vektor program must have a main() function.");
     }
 
     this.callFunction(mainFn, [], 1, 1);
@@ -807,7 +807,7 @@ export class Interpreter {
       return value;
     }
 
-    // Field assignment: p.name = "Viktor"
+    // Field assignment: p.name = "Vektor"
     if (node.target.kind === "FieldAccessExpr") {
       const object = this.visitExpression(node.target.object);
       if (object.type !== "struct") {

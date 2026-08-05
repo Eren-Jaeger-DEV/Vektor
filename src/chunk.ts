@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Bytecode Chunk
+// Vektor — Bytecode Chunk
 // ============================================================
 // A Chunk is the compiled bytecode for a single function (or
 // the top-level script). It holds the instruction bytes, a

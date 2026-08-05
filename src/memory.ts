@@ -1,5 +1,5 @@
 // ============================================================
-// Viktor Script — Memory Heap (Pointer Simulation)
+// Vektor — Memory Heap (Pointer Simulation)
 // ============================================================
 // Simulates heap memory for alloc/free/&/* operations.
 // Since we're in interpreted mode, real addresses don't exist
@@ -29,7 +29,7 @@ interface VarRef {
 }
 
 /**
- * Simulated heap for Viktor Script interpreted mode.
+ * Simulated heap for Vektor interpreted mode.
  * Tracks allocations and provides virtual addresses.
  */
 export class MemoryHeap {

@@ -1,4 +1,0 @@
-// stdlib/os.vks — OS builtins (native)
-// Native functions: time, exit
-
-const STDLIB_OS_VERSION: i32 = 1;

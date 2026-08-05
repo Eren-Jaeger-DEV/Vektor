@@ -1,7 +1,7 @@
 {
-  "name": "viktor-script",
+  "name": "vektor-language",
   "version": "0.1.0",
-  "description": "Viktor Script language compiler and interpreter",
+  "description": "Vektor language compiler and interpreter",
   "type": "module",
   "scripts": {
     "build": "tsc",

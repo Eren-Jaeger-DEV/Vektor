@@ -1,5 +1,5 @@
 // src/llvm-emitter.ts
-// Phase 8 — Viktor Script -> LLVM IR
+// Phase 8 — Vektor -> LLVM IR
 
 import {
   Program, FunctionDecl, StructDecl, Statement, Expression, TypeNode, PrimitiveType, ArrayType, PointerType, CallExpr
@@ -176,8 +176,8 @@ export class LLVMEmitter {
 
   emit(program: Program): string {
     this.out = [];
-    this.out.push(`; ModuleID = 'vks'`);
-    this.out.push(`source_filename = "main.vks"`);
+    this.out.push(`; ModuleID = 'vektor'`);
+    this.out.push(`source_filename = "main.vk"`);
     this.out.push(`target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"`);
     this.out.push(`target triple = "${this.targetTriple}"`);
     this.out.push(``);
@@ -192,13 +192,13 @@ export class LLVMEmitter {
     this.out.push(`declare i8* @malloc(i64)`);
     this.out.push(`declare void @free(i8*)`);
     this.out.push(`declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg)`);
-    this.out.push(`declare void @vks_print_i32(i32)`);
-    this.out.push(`declare void @vks_print_f64(double)`);
-    this.out.push(`declare void @vks_print_str(i8*, i64)`);
-    this.out.push(`declare void @vks_print_bool(i32)`);
-    this.out.push(`declare double @vks_sqrt(double)`);
-    this.out.push(`declare void @vks_push_frame(i8*)`);
-    this.out.push(`declare void @vks_pop_frame()`);
+    this.out.push(`declare void @vk_print_i32(i32)`);
+    this.out.push(`declare void @vk_print_f64(double)`);
+    this.out.push(`declare void @vk_print_str(i8*, i64)`);
+    this.out.push(`declare void @vk_print_bool(i32)`);
+    this.out.push(`declare double @vk_sqrt(double)`);
+    this.out.push(`declare void @vk_push_frame(i8*)`);
+    this.out.push(`declare void @vk_pop_frame()`);
     this.out.push(`declare void @vks_panic(i8*)`);
     this.out.push(`declare i8* @vks_spawn(i8*, i8*)`);
     this.out.push(`declare void @vks_thread_join(i8*)`);
@@ -239,7 +239,7 @@ export class LLVMEmitter {
     this.out.push(`declare %str* @vks_get_env(%str)`);
     this.out.push(`declare %array_str* @vks_str_split(i8*, i64, i8*, i64)`);
     this.out.push(`declare %str @vks_str_replace(%str, %str, %str)`);
-    this.out.push(`declare void @vks_free_str_array(%array_str)`);
+    this.out.push(`declare void @vk_free_str_array(%array_str)`);
     this.out.push(`declare i8* @vks_tcp_connect(i8*, i64, i32)`);
     this.out.push(`declare i32 @vks_socket_send(i8*, i8*, i64)`);
     this.out.push(`declare %str* @vks_socket_recv_all(i8*)`);
@@ -288,14 +288,6 @@ export class LLVMEmitter {
     return this.out.join("\n");
   }
 
-  private emitStructDecl(decl: StructDecl) {
-    this.structFields.set(decl.name.name, decl.fields.map(f => ({
-      name: f.name.name,
-      type: vksTypeToLLVM(f.type)
-    })));
-    const fields = decl.fields.map(f => vksTypeToLLVM(f.type)).join(", ");
-    this.out.push(`%${decl.name.name} = type { ${fields} }`);
-  }
 
   private emitFunction(fn: FunctionDecl) {
     this.pushScope();
@@ -318,7 +310,7 @@ export class LLVMEmitter {
     const fnNameStr = fn.name.name;
     const globalName = this.stringLiterals.get(fnNameStr);
     const escapedLen = fnNameStr.length + 1;
-    this.out.push(`  call void @vks_push_frame(i8* getelementptr inbounds ([${escapedLen} x i8], [${escapedLen} x i8]* ${globalName}, i64 0, i64 0))`);
+    this.out.push(`  call void @vk_push_frame(i8* getelementptr inbounds ([${escapedLen} x i8], [${escapedLen} x i8]* ${globalName}, i64 0, i64 0))`);
 
     // Allocate stack slots for params
     for (const p of fn.params) {
@@ -333,7 +325,7 @@ export class LLVMEmitter {
     }
 
     // Safety net
-    this.out.push(`  call void @vks_pop_frame()`);
+    this.out.push(`  call void @vk_pop_frame()`);
     if (retType === "void") {
       this.out.push(`  ret void`);
     } else {
@@ -349,7 +341,7 @@ export class LLVMEmitter {
   private emitStmt(stmt: Statement) {
     switch (stmt.kind) {
       case "ReturnStatement": {
-        this.out.push(`  call void @vks_pop_frame()`);
+        this.out.push(`  call void @vk_pop_frame()`);
         if (!stmt.value) {
           this.out.push(`  ret void`);
           return;
@@ -795,14 +787,14 @@ export class LLVMEmitter {
         if (calleeName === "print") {
             const arg = this.emitExpr(expr.args[0]);
             if (arg.type === "i32") {
-                this.out.push(`  call void @vks_print_i32(i32 ${arg.reg})`);
+                this.out.push(`  call void @vk_print_i32(i32 ${arg.reg})`);
             } else if (arg.type === "double") {
-                this.out.push(`  call void @vks_print_f64(double ${arg.reg})`);
+                this.out.push(`  call void @vk_print_f64(double ${arg.reg})`);
             } else if (arg.type === "i1") {
                 // zext to i32 for printing
                 const zext = this.fresh();
                 this.out.push(`  ${zext} = zext i1 ${arg.reg} to i32`);
-                this.out.push(`  call void @vks_print_bool(i32 ${zext})`);
+                this.out.push(`  call void @vk_print_bool(i32 ${zext})`);
             } else if (arg.type === "%str") {
                 // Extract ptr and len from struct value
                 const regStruct = arg.reg;
@@ -810,7 +802,7 @@ export class LLVMEmitter {
                 this.out.push(`  ${regPtr} = extractvalue %str ${regStruct}, 0`);
                 const regLen = this.fresh();
                 this.out.push(`  ${regLen} = extractvalue %str ${regStruct}, 1`);
-                this.out.push(`  call void @vks_print_str(i8* ${regPtr}, i64 ${regLen})`);
+                this.out.push(`  call void @vk_print_str(i8* ${regPtr}, i64 ${regLen})`);
             } else {
                 this.out.push(`  ; TODO: print for type ${arg.type}`);
             }
@@ -820,7 +812,7 @@ export class LLVMEmitter {
         if (calleeName === "sqrt") {
             const arg = this.emitExpr(expr.args[0]);
             const reg = this.fresh();
-            this.out.push(`  ${reg} = call double @vks_sqrt(double ${arg.reg})`);
+            this.out.push(`  ${reg} = call double @vk_sqrt(double ${arg.reg})`);
             return { reg, type: "double" };
         }
         
@@ -871,7 +863,7 @@ export class LLVMEmitter {
         }
         if (calleeName === "free_str_array") {
             const arg = this.emitExpr(expr.args[0]);
-            this.out.push(`  call void @vks_free_str_array(${arg.type} ${arg.reg})`);
+            this.out.push(`  call void @vk_free_str_array(${arg.type} ${arg.reg})`);
             return { reg: "0", type: "void" };
         }
         if (calleeName === "tcp_connect") {
