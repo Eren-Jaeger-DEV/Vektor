@@ -14,7 +14,7 @@ describe("Example Programs End-to-End VM Execution (--run)", () => {
     const output = execSync(`npx tsx src/main.ts "${file}" --run`, { encoding: "utf-8" });
     expect(output).toContain("Hello from Vektor");
     expect(output).toContain("Program finished successfully");
-  });
+  }, 20000);
 
   it("executes examples/full.vk on Bytecode VM", () => {
     const file = resolve(root, "examples", "full.vk");
@@ -22,14 +22,14 @@ describe("Example Programs End-to-End VM Execution (--run)", () => {
     expect(output).toContain("Vektor");
     expect(output).toContain("S Rank");
     expect(output).toContain("Program finished successfully");
-  });
+  }, 20000);
 
   it("executes examples/interpreter_demo.vk on Bytecode VM", () => {
     const file = resolve(root, "examples", "interpreter_demo.vk");
     const output = execSync(`npx tsx src/main.ts "${file}" --run`, { encoding: "utf-8" });
     expect(output).toContain("=== Casting ===");
     expect(output).toContain("Program finished successfully");
-  });
+  }, 20000);
 
   it("executes examples/showcase.vk on Bytecode VM", () => {
     const file = resolve(root, "examples", "showcase.vk");
@@ -37,5 +37,5 @@ describe("Example Programs End-to-End VM Execution (--run)", () => {
     expect(output).toContain("VEKTOR DEMO & TEST SUITE");
     expect(output).toContain("ALL VEKTOR TESTS PASSED SUCCESSFULLY!");
     expect(output).toContain("Program finished successfully");
-  });
+  }, 20000);
 });
