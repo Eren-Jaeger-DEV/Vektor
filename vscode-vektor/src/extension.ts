@@ -4,20 +4,18 @@ import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
-  TransportKind,
-} from "vscode-languageclient/node";
+} from "vscode-languageclient/node.js";
 
 let client: LanguageClient;
 
 export function activate(context: vscode.ExtensionContext) {
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || context.extensionPath;
   const projectRoot = path.resolve(context.extensionPath, "..");
   const mainTs = path.join(projectRoot, "src", "main.ts");
-  const lspVks = path.join(projectRoot, "vektor-lsp", "main.vk");
+  const lspVk = path.join(projectRoot, "vektor-lsp", "main.vk");
 
   const serverOptions: ServerOptions = {
     command: "npx",
-    args: ["tsx", mainTs, lspVks, "--run"],
+    args: ["tsx", mainTs, lspVk, "--run"],
     options: {
       cwd: projectRoot,
     },
@@ -32,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   client = new LanguageClient(
     "vektorLanguageServer",
-    "VektorScript Language Server",
+    "Vektor Language Server",
     serverOptions,
     clientOptions
   );

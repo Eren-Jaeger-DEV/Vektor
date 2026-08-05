@@ -1,7 +1,7 @@
 {
   "name": "vscode-vektor",
-  "displayName": "VektorScript",
-  "description": "Official language support and Language Server (LSP) for VektorScript",
+  "displayName": "Vektor",
+  "description": "Official language support and Language Server (LSP) for Vektor",
   "version": "0.2.0",
   "publisher": "vks-lang",
   "repository": {
@@ -13,14 +13,15 @@
   },
   "main": "./out/extension.js",
   "activationEvents": [
-    "onLanguage:vks"
+    "onLanguage:vektor"
   ],
   "categories": [
     "Programming Languages"
   ],
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
-    "compile": "tsc -p ./"
+    "compile": "tsc -p ./",
+    "package": "npx @vscode/vsce package --no-dependencies"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -35,7 +36,7 @@
       {
         "id": "vektor",
         "aliases": [
-          "VektorScript",
+          "Vektor",
           "vektor"
         ],
         "extensions": [
@@ -48,7 +49,7 @@
       {
         "language": "vektor",
         "scopeName": "source.vk",
-        "path": "./syntaxes/vks.tmLanguage.json"
+        "path": "./syntaxes/vektor.tmLanguage.json"
       }
     ]
   }

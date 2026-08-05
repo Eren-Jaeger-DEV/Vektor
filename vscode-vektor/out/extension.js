@@ -4,27 +4,26 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const path = require("path");
 const vscode = require("vscode");
-const node_1 = require("vscode-languageclient/node");
+const node_js_1 = require("vscode-languageclient/node.js");
 let client;
 function activate(context) {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || context.extensionPath;
     const projectRoot = path.resolve(context.extensionPath, "..");
     const mainTs = path.join(projectRoot, "src", "main.ts");
-    const lspVks = path.join(projectRoot, "vks-lsp", "main.vks");
+    const lspVk = path.join(projectRoot, "vektor-lsp", "main.vk");
     const serverOptions = {
         command: "npx",
-        args: ["tsx", mainTs, lspVks, "--run"],
+        args: ["tsx", mainTs, lspVk, "--run"],
         options: {
             cwd: projectRoot,
         },
     };
     const clientOptions = {
-        documentSelector: [{ scheme: "file", language: "vks" }],
+        documentSelector: [{ scheme: "file", language: "vektor" }],
         synchronize: {
-            fileEvents: vscode.workspace.createFileSystemWatcher("**/*.vks"),
+            fileEvents: vscode.workspace.createFileSystemWatcher("**/*.vk"),
         },
     };
-    client = new node_1.LanguageClient("vksLanguageServer", "ViktorScript Language Server", serverOptions, clientOptions);
+    client = new node_js_1.LanguageClient("vektorLanguageServer", "Vektor Language Server", serverOptions, clientOptions);
     client.start();
 }
 function deactivate() {
