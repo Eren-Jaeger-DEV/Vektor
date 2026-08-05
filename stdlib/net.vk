@@ -1,0 +1,4 @@
+// stdlib/net.vk — Native WebSocket & Networking Standard Library
+// Builtins: ws_connect, ws_send, ws_recv, ws_close
+
+const STDLIB_NET_VERSION: i32 = 1;

@@ -1,5 +1,0 @@
-function main() { 
-      let s: str = "  Hello  ";
-      print(toUpper(s));
-      print(toLower(trim(s)));
-     }

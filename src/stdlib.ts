@@ -16,6 +16,188 @@ import {
   stringify,
 } from "./values.js";
 import { RuntimeError } from "./errors.js";
+import WebSocket from "ws";
+
+import { Worker } from "worker_threads";
+
+interface SocketEntry {
+  worker: Worker;
+  sab: SharedArrayBuffer;
+  ctrl: Int32Array;
+  buf: Uint8Array;
+}
+
+const activeSockets = new Map<number, SocketEntry>();
+let socketCounter = 1;
+
+function wsConnectImpl(url: string): number {
+  try {
+    const id = socketCounter++;
+    // 1 MB Shared Memory Buffer
+    const sab = new SharedArrayBuffer(1024 * 1024);
+    const ctrl = new Int32Array(sab, 0, 4);
+    // ctrl[0]: Write Head, ctrl[1]: Read Tail, ctrl[2]: Ready State
+    ctrl[0] = 16;
+    ctrl[1] = 16;
+    ctrl[2] = 0;
+
+    const workerScript = `
+      const { parentPort, workerData } = require('worker_threads');
+      const WebSocket = require('/home/victor/My projects/VKS/node_modules/ws');
+
+      const sab = workerData.sab;
+      const ctrl = new Int32Array(sab, 0, 4);
+      const buf = new Uint8Array(sab);
+
+      function writeToBuffer(str) {
+        const strBytes = Buffer.from(str, 'utf-8');
+        let head = ctrl[0];
+        const capacity = sab.byteLength;
+
+        // Write 4-byte length prefix
+        const len = strBytes.length;
+        buf[head % capacity] = (len >> 24) & 0xff;
+        buf[(head + 1) % capacity] = (len >> 16) & 0xff;
+        buf[(head + 2) % capacity] = (len >> 8) & 0xff;
+        buf[(head + 3) % capacity] = len & 0xff;
+        head += 4;
+
+        // Write content bytes
+        for (let i = 0; i < len; i++) {
+          buf[(head + i) % capacity] = strBytes[i];
+        }
+        head += len;
+
+        // Update head pointer & notify main thread
+        Atomics.store(ctrl, 0, head);
+        Atomics.notify(ctrl, 0);
+      }
+
+      const ws = new WebSocket(workerData.url);
+      
+      ws.on('open', () => {
+        console.log('[Vektor Net Worker] 🟢 WebSocket Connection OPEN!');
+        Atomics.store(ctrl, 2, 1);
+      });
+
+      ws.on('message', (data) => {
+        const msg = data.toString();
+        console.log('[Vektor Net Worker] 📥 Recv message: ' + msg.substring(0, 100));
+        writeToBuffer(msg);
+
+        // Auto-Heartbeat for Discord Gateway
+        try {
+          const parsed = JSON.parse(msg);
+          if (parsed.op === 10) {
+            const interval = parsed.d.heartbeat_interval;
+            console.log('[Vektor Net Worker] 💓 Discord Heartbeat started every ' + interval + 'ms');
+            setInterval(() => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ op: 1, d: null }));
+              }
+            }, interval);
+          }
+        } catch (e) {}
+      });
+
+      ws.on('error', (err) => {
+        console.error('[Vektor Net Worker] ❌ Error:', err.message);
+      });
+
+      ws.on('close', (code, reason) => {
+        console.log('[Vektor Net Worker] 🔴 Closed:', code, reason.toString());
+        Atomics.store(ctrl, 2, 0);
+      });
+
+      parentPort.on('message', (msg) => {
+        if (msg.type === 'send') {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(msg.data);
+            console.log('[Vektor Net Worker] 📤 Sent message down WebSocket');
+          } else {
+            ws.once('open', () => {
+              ws.send(msg.data);
+              console.log('[Vektor Net Worker] 📤 Sent queued message down WebSocket');
+            });
+          }
+        }
+      });
+    `;
+
+    const worker = new Worker(workerScript, {
+      eval: true,
+      stdout: true,
+      stderr: true,
+      workerData: { url, sab }
+    });
+    if (worker.stdout) worker.stdout.pipe(process.stdout);
+    if (worker.stderr) worker.stderr.pipe(process.stderr);
+
+    const entry: SocketEntry = {
+      worker,
+      sab,
+      ctrl,
+      buf: new Uint8Array(sab)
+    };
+
+    activeSockets.set(id, entry);
+    return id;
+  } catch (e) {
+    console.error("[Vektor Net] Failed to create WebSocket worker:", e);
+    return -1;
+  }
+}
+
+function wsSendImpl(id: number, payload: string): boolean {
+  const sock = activeSockets.get(id);
+  if (!sock) return false;
+  sock.worker.postMessage({ type: "send", data: payload });
+  return true;
+}
+
+function wsRecvImpl(id: number): string | null {
+  const sock = activeSockets.get(id);
+  if (!sock) return null;
+
+  let head = Atomics.load(sock.ctrl, 0);
+  let tail = sock.ctrl[1];
+
+  if (head === tail) {
+    // Wait up to 10ms for worker thread to push a message
+    Atomics.wait(sock.ctrl, 0, head, 10);
+    head = Atomics.load(sock.ctrl, 0);
+  }
+
+  if (head > tail) {
+    const capacity = sock.sab.byteLength;
+    // Read 4-byte length prefix
+    const b0 = sock.buf[tail % capacity];
+    const b1 = sock.buf[(tail + 1) % capacity];
+    const b2 = sock.buf[(tail + 2) % capacity];
+    const b3 = sock.buf[(tail + 3) % capacity];
+    const len = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+
+    tail += 4;
+    const msgBuf = Buffer.alloc(len);
+    for (let i = 0; i < len; i++) {
+      msgBuf[i] = sock.buf[(tail + i) % capacity];
+    }
+    tail += len;
+
+    sock.ctrl[1] = tail;
+    return msgBuf.toString("utf-8");
+  }
+
+  return null;
+}
+
+function wsCloseImpl(id: number): boolean {
+  const sock = activeSockets.get(id);
+  if (!sock) return false;
+  sock.worker.terminate();
+  activeSockets.delete(id);
+  return true;
+}
 
 // ── Stdlib Paths ─────────────────────────────────────────────
 
@@ -124,6 +306,11 @@ export const BUILTIN_SPECS: BuiltinSpec[] = [
   { name: "parse_json",     module: "sys.vk", arity: 1 },
   { name: "stringify_json", module: "sys.vk", arity: 1 },
   { name: "system",         module: "sys.vk", arity: 1 },
+  // net
+  { name: "ws_connect", module: "net.vk", arity: 1 },
+  { name: "ws_send",    module: "net.vk", arity: 2 },
+  { name: "ws_recv",    module: "net.vk", arity: 1 },
+  { name: "ws_close",   module: "net.vk", arity: 1 },
   // math
   { name: "sqrt",       module: "math.vk",   arity: 1 },
   { name: "pow",        module: "math.vk",   arity: 2 },
@@ -290,6 +477,14 @@ export function registerInterpreterBuiltins(
   define("panic", 1, ([msg]) => {
     throw new RuntimeError(strVal(msg), 0, 0);
   });
+
+  define("ws_connect", 1, ([url]) => mkInteger(wsConnectImpl(strVal(url))));
+  define("ws_send", 2, ([id, payload]) => mkBool(wsSendImpl(numVal(id), strVal(payload))));
+  define("ws_recv", 1, ([id]) => {
+    const res = wsRecvImpl(numVal(id));
+    return res === null ? mkNull() : mkString(res);
+  });
+  define("ws_close", 1, ([id]) => mkBool(wsCloseImpl(numVal(id))));
 
   define("map_create", 0, () => mkMap());
   define("map_set", 3, ([map, key, val]) => {
@@ -546,6 +741,11 @@ export function registerVMBuiltins(
     const parsed = parseFloat(String(s));
     return isNaN(parsed) ? 0 : parsed;
   });
+
+  define("ws_connect", 1, (url) => wsConnectImpl(String(url)));
+  define("ws_send", 2, (id, payload) => wsSendImpl(Number(id), String(payload)));
+  define("ws_recv", 1, (id) => wsRecvImpl(Number(id)));
+  define("ws_close", 1, (id) => wsCloseImpl(Number(id)));
 
   define("array_new", 0, () => []);
   define("array_length", 1, (arr) => {
