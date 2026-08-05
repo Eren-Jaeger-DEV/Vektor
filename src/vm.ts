@@ -118,9 +118,6 @@ export class VM {
     try {
       while (true) {
         this.instructionsExecuted++;
-        if (this.instructionsExecuted > 500000000) {
-            throw new Error(`VM Infinite Loop Detected! ip: ${frame.ip}, op: ${code[frame.ip]}`);
-        }
       
       if (frame.ip >= code.length) {
         throw new RuntimeError("VM executed past end of chunk", chunk.lines[chunk.lines.length - 1] || 1);
