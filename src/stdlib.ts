@@ -72,15 +72,19 @@ export function resolvePackageEntry(projectRoot: string, packageName: string): s
 
   if (existsSync(pkgManifestPath)) {
     const pkgManifest = JSON.parse(readFileSync(pkgManifestPath, "utf-8"));
-    return resolve(pkgDir, pkgManifest.entry);
+    const entry = pkgManifest.main || pkgManifest.entry || "index.vk";
+    const resolved = resolve(pkgDir, entry);
+    if (existsSync(resolved)) return resolved;
   }
 
-  // Fallback convention if the package has no manifest: look for index.vk
-  const fallback = resolve(pkgDir, "index.vk");
-  if (existsSync(fallback)) return fallback;
+  const fallbackIndex = resolve(pkgDir, "index.vk");
+  if (existsSync(fallbackIndex)) return fallbackIndex;
+
+  const fallbackMain = resolve(pkgDir, "main.vk");
+  if (existsSync(fallbackMain)) return fallbackMain;
 
   throw new Error(
-    `Cannot resolve package "${packageName}" — no vektor.json or index.vk found in ${pkgDir}`
+    `Cannot resolve package "${packageName}" — no vektor.json, index.vk, or main.vk found in ${pkgDir}`
   );
 }
 

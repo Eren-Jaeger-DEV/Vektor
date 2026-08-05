@@ -25,11 +25,28 @@ import { ASTPrinter } from "./printer.js";
 import { TypeChecker } from "./checker.js";
 import { RuntimeError, ParseError, LexerError, formatErrorWithSnippet } from "./errors.js";
 
+import { initProject, installAll, addAndInstall } from "./package-manager.js";
+
 const args = process.argv.slice(2);
 const cwd = process.cwd();
 
+// --- Package Manager Subcommands ---
+if (args[0] === "init") {
+  initProject(cwd);
+  process.exit(0);
+}
+
+if (args[0] === "install") {
+  if (args[1]) {
+    addAndInstall(cwd, args[1]);
+  } else {
+    installAll(cwd);
+  }
+  process.exit(0);
+}
+
 // --- Command Delegation to Self-Hosted Multi-Tool ---
-if (args[0] === "init" || args[0] === "install" || args[0] === "compile" || args[0] === "build" || args[0] === "--llvm-self") {
+if (args[0] === "compile" || args[0] === "build" || args[0] === "--llvm-self") {
   const compilerPath = resolve(dirname(fileURLToPath(import.meta.url)), "..", "compiler.vkb");
   if (!existsSync(compilerPath)) {
     console.error("compiler.vkb not found. Please bootstrap the self-hosted compiler first.");
