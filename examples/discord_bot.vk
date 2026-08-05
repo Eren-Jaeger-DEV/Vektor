@@ -1,0 +1,45 @@
+// ============================================================
+// Vektor — Discord Bot & Webhook Integration Example
+// ============================================================
+import "io.vk";
+import "string.vk";
+import "os.vk";
+
+struct DiscordMessage {
+  username: str;
+  content: str;
+  avatar_url: str;
+}
+
+fn format_discord_payload(msg: DiscordMessage) -> str {
+  return "{\"username\":\"" + msg.username + "\",\"content\":\"" + msg.content + "\"}";
+}
+
+fn send_discord_webhook(webhook_url: str, msg: DiscordMessage) -> bool {
+  let payload = format_discord_payload(msg);
+  print("🤖 Sending Discord Bot Message...");
+  print("   Payload: " + payload);
+  
+  // Format system curl command for Discord HTTPS REST API
+  let cmd = "curl -s -H \"Content-Type: application/json\" -X POST -d '" + payload + "' \"" + webhook_url + "\"";
+  
+  let exit_code = system(cmd);
+  return exit_code == 0;
+}
+
+function main() {
+  print("==================================================");
+  print("🤖 Vektor Discord Bot Notification Engine");
+  print("==================================================");
+
+  let bot_msg = DiscordMessage {
+    username: "VektorBot",
+    content: "🚀 Hello from Vektor Programming Language!",
+    avatar_url: "https://vks-lang.dev/logo.png"
+  };
+
+  print("Formatted Payload:");
+  print(format_discord_payload(bot_msg));
+  print("");
+  print("To send live messages to your Discord server, pass your Webhook URL to send_discord_webhook()!");
+}
