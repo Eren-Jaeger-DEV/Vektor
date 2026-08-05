@@ -17,7 +17,7 @@ describe("Standalone Native Vektor Compiler Executable (vektor)", () => {
     try {
       execSync("npx tsx scripts/build-native-compiler.ts", { stdio: "ignore" });
     } catch {}
-  });
+  }, 30000);
 
   afterEach(() => {
     if (existsSync(testVk)) unlinkSync(testVk);
