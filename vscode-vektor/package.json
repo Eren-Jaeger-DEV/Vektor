@@ -12,9 +12,6 @@
     "vscode": "^1.80.0"
   },
   "main": "./out/extension.js",
-  "activationEvents": [
-    "onLanguage:vektor"
-  ],
   "categories": [
     "Programming Languages"
   ],
