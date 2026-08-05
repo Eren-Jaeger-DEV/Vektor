@@ -519,6 +519,9 @@ export class LLVMEmitter {
         this.out.push(`  ${elemPtr} = getelementptr inbounds ${elemType}, ${elemType}* ${data}, i32 ${indexExpr.reg}`);
         return { reg: elemPtr, type: `${elemType}*` };
       }
+      case "CallExpr": {
+        return this.emitExpr(expr);
+      }
       default:
         throw new Error(`Invalid L-value expression: ${expr.kind}`);
     }
