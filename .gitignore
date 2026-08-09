@@ -1,15 +1,53 @@
+# ─── Dependencies ──────────────────────────────────────────────
 node_modules/
 dist/
-*.zip
-*.log
-*.txt
-*.ll
-*.o
-*.exe
+
+# ─── AI Agent / IDE Customisation Files ─────────────────────────
+.agents/
+.gemini/
+.cursorrules
+.copilot/
+.continue/
+AGENTS.md
+
+# ─── Compiled Bytecode (all .vkb EXCEPT the self-hosted compiler binary) ──
 *.vkb
 !compiler.vkb
 !vks-compiler/compiler.vkb
-test_*.vks
-tmp/
+
+# ─── LLVM / Native Build Artifacts ──────────────────────────────
+*.ll
+*.o
+*.exe
+*.out
+*.a
+*.so
+*.dylib
+
+# ─── Temporary / Debug Files ─────────────────────────────────────
+*.log
+*.txt
+clean_disassembly.txt
 *.tmp
+tmp/
+*.tmp.vkb
+
+# ─── Archives ────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# ─── Editor / IDE Metadata ───────────────────────────────────────
+.vscode/settings.json
+.idea/
 *.vsix
+*.vscodeignore
+
+# ─── Test Scratch Files ──────────────────────────────────────────
+test_*.vks
+_test_*/
+
+# ─── OS Junk ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

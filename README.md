@@ -11,10 +11,9 @@ struct Player {
 }
 
 fn get_rank(score: i32) -> Result<str, str> {
-    if score < 0 {
-        return Err("Score cannot be negative");
-    }
+    if score < 0 { return Err("Score cannot be negative"); }
     if score >= 90 { return Ok("S Rank"); }
+    if score >= 75 { return Ok("A Rank"); }
     return Ok("B Rank");
 }
 
@@ -23,7 +22,7 @@ function main() {
     let rank = get_rank(p.score);
 
     if rank.ok {
-        print(rank.value);
+        print(rank.value);  // S Rank
     } else {
         print(rank.error);
     }
@@ -40,16 +39,15 @@ function main() {
 | Native compilation | ✅ | ✅ | ❌ | ✅ (LLVM) |
 | Learning curve | Steep | Steep | Low | **Low** |
 | Beginner friendly | ❌ | ❌ | ✅ | ✅ |
+| Self-hosted compiler | ✅ | ✅ | ❌ | ✅ |
 
-Rust gives you memory safety through a borrow checker that takes months to internalize. Zig gives you raw control but assumes you're already a systems programmer. TypeScript is easy to learn but can't touch memory or compile to a native binary.
+Rust gives you memory safety through a borrow checker that takes months to internalize. Zig gives you raw control but assumes you're already a systems programmer. TypeScript is easy but can't touch memory or compile to a native binary.
 
-Vektor's lane: **the power of manual memory and native compilation, without the cliff.** One owner per value, explicit `clone()`, no fighting a checker for hours over lifetimes. Every syntax choice in the language points at this same goal — see [Manifesto.md](./Manifesto.md) for the full philosophy.
+**Vektor's lane:** the power of manual memory and native compilation, without the cliff. One owner per value, explicit `clone()`, no fighting a borrow checker for hours over lifetimes. See [MANIFESTO.md](./docs/MANIFESTO.md) for the full philosophy.
 
 ---
 
-## Status
-
-Vektor has completed its full compiler pipeline:
+## Status — 17 / 20 Phases Complete
 
 | Phase | Description | Status |
 |---|---|---|
@@ -58,91 +56,158 @@ Vektor has completed its full compiler pipeline:
 | 3 | Tree-walking Interpreter | ✅ |
 | 4 | Bytecode Compiler | ✅ |
 | 5 | Stack-based Virtual Machine | ✅ |
-| 6 | Standard Library | ✅ |
-| 7 | Self-Hosting (compiler written in `.vk`) | ✅ |
+| 6 | Standard Library (io, math, string, os, net, map, memory) | ✅ |
+| 7 | Self-Hosting — compiler written in `.vk` | ✅ |
 | 8 | Native compilation via LLVM | ✅ |
+| 9 | Package Manager (`vektor.json`, `vk_modules/`) | ✅ |
+| 10 | Generics (monomorphization) | ✅ |
+| 11 | Standard Library Expansion (fs, json, env, str utils) | ✅ |
+| 12 | Error Handling & Stack Traces | ✅ |
+| 13 | Concurrency — OS threads, mutexes | ✅ |
+| 14 | Networking — TCP sockets, WebSockets | ✅ |
+| 15 | Cross-Platform Native Compilation | ✅ |
+| 16 | Self-Hosted Package Manager | ✅ |
+| 17 | VS Code Extension + LSP foundation | ✅ |
+| 18 | Standalone Binary Installer | 🔄 In Progress |
+| 19 | Battle Test — real production program | 📋 Planned |
+| 20 | Public Launch | 📋 Planned |
 
-Verified with 280+ automated tests across lexer, parser, interpreter, compiler, VM, and standard library — plus an end-to-end diff proving native LLVM-compiled binaries produce identical output to the VM interpreter.
+Verified with **283 automated tests** (282 passing, 1 skipped) across lexer, parser, interpreter, compiler, VM, standard library, package manager, and example programs — plus end-to-end VM execution of all example files on every CI run.
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org) (v18+)
-- [LLVM / Clang](https://releases.llvm.org) — required only for native compilation (`--llvm` flag)
+- [Node.js](https://nodejs.org) v18+
+- [LLVM / Clang](https://releases.llvm.org) — only for native compilation (`--llvm`)
 
 ### Install
 
-#### One-Line Shell Install (Linux / macOS):
+**One-line (Linux / macOS):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Eren-Jaeger-DEV/VKS/main/install.sh | sh
 ```
 
-#### From Source:
+**From source:**
 ```bash
 git clone https://github.com/Eren-Jaeger-DEV/VKS.git
 cd VKS
 npm install
 ```
 
-### Run a Vektor file
+### Run a Vektor File
 
 ```bash
-# Interpreted (AST walk)
-npx tsx src/main.ts examples/hello.vk --run-ast
-
-# Compiled + executed on the bytecode VM
+# Bytecode VM — recommended, fast
 npx tsx src/main.ts examples/hello.vk --run
 
-# Compile to bytecode binary
-npx tsx src/main.ts examples/hello.vk --compile -o hello.vkb
+# AST interpreter — immediate, no compilation
+npx tsx src/main.ts examples/hello.vk --run-ast
 
-# Execute a pre-compiled binary directly
-npx tsx src/main.ts hello.vkb --exec
+# Compile to .vkb bytecode binary
+npx tsx src/main.ts examples/hello.vk --compile
 
-# Compile to LLVM IR, then to a native binary
+# Execute a pre-compiled .vkb binary
+npx tsx src/main.ts examples/hello.vkb --exec
+
+# Compile to LLVM IR → native binary
 npx tsx src/main.ts examples/hello.vk --llvm
-clang hello.ll runtime.o -o hello.exe
-./hello.exe
+clang hello.ll runtime.o -o hello
+./hello
+```
+
+### Run the Test Suite
+
+```bash
+npm test
 ```
 
 ---
 
-## Language Tour
+## Language Highlights
 
-- **Explicit types everywhere** — no inference, no guessing: `let age: i32 = 20;`
-- **Dual syntax for beginners and pros** — `function`/`fn`, `&&`/`and`, both valid and identical
-- **Nullable types via `?`** — `let y: i32? = null;`, compiler-enforced null checks
-- **`Result<T, E>` for errors** — no silent failures, no hidden exceptions
-- **Simple ownership model** — one owner per value, `clone()` to copy, pointers borrow
-- **Manual memory control** — `alloc`, `free`, `&`, `*` — full control, no garbage collector
-
-Full language specification: [`vektor-spec.md`](./vektor-spec.md)
+- **Explicit types everywhere** — no inference: `let age: i32 = 20;`
+- **Dual syntax** — `function`/`fn`, `&&`/`and`, `||`/`or` — identical, pick your style
+- **Nullable types** — `let y: i32? = null;` with compiler-enforced null checks
+- **`Result<T, E>` error handling** — no silent failures, no exceptions
+- **Simple ownership** — one owner per value, `clone()` to copy, pointers borrow
+- **Manual memory** — `alloc`, `free`, `&`, `*` — no garbage collector
+- **Generics** — `fn identity<T>(val: T) -> T` via monomorphization (zero runtime cost)
+- **Real concurrency** — `spawn`, `mutex_create`, `mutex_lock` via OS threads
+- **Networking** — `tcp_connect`, `ws_connect`, `ws_send`, `ws_recv` in stdlib
+- **Package manager** — `vektor.json` manifest, `vk_modules/` resolution, bare imports
 
 ---
 
 ## Project Structure
 
 ```
-vektor-language/
-├── src/                  # TypeScript implementation (lexer, parser, interpreter, compiler, VM, LLVM emitter)
-├── vektor-compiler/          # Self-hosted compiler, written in Vektor
-├── examples/              # Sample .vk programs
-├── runtime.c              # C runtime library linked into native LLVM binaries
-└── vektor-spec.md  # Full language specification
+VKS/
+├── src/                        # TypeScript toolchain (lexer → parser → compiler → VM → LLVM)
+│   ├── lexer.ts
+│   ├── parser.ts
+│   ├── interpreter.ts
+│   ├── compiler.ts
+│   ├── vm.ts
+│   ├── llvm.ts
+│   ├── main.ts                 # CLI entry point
+│   └── *.test.ts               # 283 automated tests
+│
+├── stdlib/                     # Standard library (.vk modules)
+│   ├── io.vk
+│   ├── math.vk
+│   ├── string.vk
+│   ├── os.vk
+│   ├── net.vk
+│   ├── memory.vk
+│   └── map.vk
+│
+├── vektor-compiler/            # Self-hosted compiler written in Vektor
+├── vektor-lsp/                 # Language Server Protocol foundation
+├── vscode-vektor/              # VS Code syntax highlighting extension
+│
+├── examples/                   # Example .vk programs
+│   ├── hello.vk
+│   ├── full.vk
+│   ├── interpreter_demo.vk
+│   ├── showcase.vk
+│   └── discord_bot.vk
+│
+├── tests/                      # Additional .vk test programs
+├── scripts/                    # Build & bootstrap scripts
+│   ├── rebootstrap.ts          # Regenerates compiler.vkb from source
+│   └── build-native-compiler.ts
+│
+├── docs/                       # All documentation
+│   ├── KNOWLEDGE_BOOK.md       # Complete language reference (beginner → advanced)
+│   ├── SPEC.md                 # Formal language specification
+│   ├── MANIFESTO.md            # Design philosophy
+│   ├── ROADMAP.md              # Full 20-phase roadmap
+│   └── PACKAGE_MANAGER.md      # Package manager integration guide
+│
+├── runtime.c                   # C runtime linked into LLVM native binaries
+├── vektor_runtime_ext.c        # Extended runtime (networking, threads, WebSocket)
+├── thread_posix.c              # POSIX thread implementation
+├── thread_win.c                # Windows thread implementation
+├── compiler.vkb                # Pre-compiled self-hosted compiler binary
+├── vektor.json                 # This project's own Vektor manifest
+├── install.sh                  # Linux/macOS one-line installer
+├── install.ps1                 # Windows PowerShell installer
+└── LICENSE                     # MIT
 ```
 
 ---
 
-## Roadmap
+## Documentation
 
-With the core pipeline complete, future directions include:
-
-- Full LLVM coverage for `HashMap` and remaining standard library functions
-- Generics (currently bypassed via type-specific structs for `Result<T,E>` and arrays)
-- Package management (`vkm install`, `vektor.json`)
-- Self-hosted serializer producing `.vkb` binaries with zero TypeScript dependency
+| Document | Description |
+|---|---|
+| [KNOWLEDGE_BOOK.md](./docs/KNOWLEDGE_BOOK.md) | Complete language guide — beginner to advanced, with AI prompt guide |
+| [SPEC.md](./docs/SPEC.md) | Formal language specification |
+| [MANIFESTO.md](./docs/MANIFESTO.md) | Design philosophy & guiding principles |
+| [ROADMAP.md](./docs/ROADMAP.md) | Full 20-phase development roadmap |
+| [PACKAGE_MANAGER.md](./docs/PACKAGE_MANAGER.md) | Package manager integration guide |
 
 ---
 
@@ -152,4 +217,4 @@ This project is licensed under the [MIT License](./LICENSE).
 
 ---
 
-*Vektor — built from a spec document to a self-hosted, natively-compiling language.*
+*Vektor — built from nothing. Foundation for everything.*
