@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────────
+# Vektor — GitHub Linguist Overrides
+#
+# The TypeScript in src/ is the BOOTSTRAP TOOLCHAIN (host compiler),
+# not the primary language of this repository.
+# The primary language is Vektor (.vk).
+# Tell GitHub Linguist to treat the TS toolchain as vendored so that
+# .vk files are correctly shown as the repo's dominant language.
+# ─────────────────────────────────────────────────────────────────
+
+# Bootstrap / host toolchain — not counted as primary language
+src/*.ts                    linguist-vendored
+src/**/*.ts                 linguist-vendored
+
+# VS Code extension — tooling, not core language
+vscode-vektor/**            linguist-vendored
+
+# Bootstrap & build scripts
+scripts/**                  linguist-vendored
+
+# Lock files
+package-lock.json           linguist-generated
+package.json                linguist-documentation
+
+# tsconfig
+tsconfig.json               linguist-documentation
+
+# C runtime files — counted (they ARE core to the language)
+runtime.c                   linguist-detectable=true
+vektor_runtime_ext.c        linguist-detectable=true
+thread_posix.c              linguist-detectable=true
+thread_win.c                linguist-detectable=true
+
+# Vektor source files — the actual language, counted
+*.vk                        linguist-detectable=true linguist-language=Vektor
+stdlib/*.vk                 linguist-detectable=true linguist-language=Vektor
+examples/*.vk               linguist-detectable=true linguist-language=Vektor
+vektor-compiler/**/*.vk     linguist-detectable=true linguist-language=Vektor
+tests/*.vk                  linguist-detectable=true linguist-language=Vektor
