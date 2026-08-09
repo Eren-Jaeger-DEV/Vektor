@@ -1,0 +1,42 @@
+# ─── Never ship these in the npm package ──────────────────────────
+
+# Raw TypeScript source (compiled dist/ is shipped instead)
+src/
+scripts/
+tsconfig.json
+
+# Test files
+*.test.ts
+vitest.config.*
+
+# Git & CI
+.git/
+.github/
+.gitignore
+.gitattributes
+.agents/
+
+# Dev artifacts
+node_modules/
+*.ll
+*.vkb
+!compiler.vkb
+*.log
+*.txt
+clean_disassembly.txt
+stress*.ll
+tmp/
+
+# VS Code extension source (published separately)
+vscode-vektor/
+
+# Self-hosted compiler source (advanced, not needed by end users)
+vektor-compiler/
+vektor-lsp/
+
+# Package lock (not needed by consumers)
+package-lock.json
+
+# Installer scripts (GitHub only)
+install.sh
+install.ps1

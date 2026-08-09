@@ -1,14 +1,49 @@
 {
-  "name": "vektor-language",
-  "version": "0.1.0",
-  "description": "Vektor language compiler and interpreter",
+  "name": "vektor-lang",
+  "version": "0.2.0",
+  "description": "Vektor (.vk) — a statically-typed, self-hosted, compiled programming language",
   "type": "module",
+  "author": "Anshuman (Boss)",
+  "license": "MIT",
+  "homepage": "https://github.com/Eren-Jaeger-DEV/Vektor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Eren-Jaeger-DEV/Vektor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Eren-Jaeger-DEV/Vektor/issues"
+  },
+  "keywords": [
+    "vektor", "vks", "programming-language", "compiler",
+    "systems-programming", "bytecode-vm", "llvm", "self-hosted"
+  ],
+  "bin": {
+    "vks": "./bin/vks"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "stdlib/",
+    "compiler.vkb",
+    "runtime.c",
+    "vektor_runtime_ext.c",
+    "thread_posix.c",
+    "thread_win.c",
+    "examples/",
+    "docs/KNOWLEDGE_BOOK.md",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "build:native": "tsx scripts/build-native-compiler.ts",
+    "prepublishOnly": "npm run build",
     "dev": "tsx src/main.ts",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+
+// Vektor CLI — vks
+// This is the entry point for the `vks` command.
+// Usage:
+//   vks run hello.vk          — run on bytecode VM (fast)
+//   vks run hello.vk --ast    — run on AST interpreter
+//   vks compile hello.vk      — compile to .vkb bytecode
+//   vks exec hello.vkb        — execute a .vkb binary
+//   vks build hello.vk        — compile to native LLVM binary
+//   vks init [name]           — create a new Vektor project
+//   vks install [package]     — install a Vektor package
+
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+import { existsSync } from "fs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const distMain = resolve(__dirname, "../dist/main.js");
+
+if (!existsSync(distMain)) {
+  console.error(
+    "Error: Vektor runtime not found. Run `npm run build` first, or reinstall via `npm install -g vektor-lang`."
+  );
+  process.exit(1);
+}
+
+// Remap vks CLI syntax to internal flags
+// vks run X.vk     => X.vk --run
+// vks compile X.vk => X.vk --compile
+// vks exec X.vkb   => X.vkb --exec
+// vks build X.vk   => X.vk --llvm
+// vks init         => --init
+// vks install      => --add
+const args = process.argv.slice(2);
+const newArgs = [];
+
+if (args[0] === "run") {
+  if (args[1]) {
+    newArgs.push(args[1]);
+    if (args.includes("--ast")) {
+      newArgs.push("--run-ast");
+    } else {
+      newArgs.push("--run");
+    }
+  }
+} else if (args[0] === "compile") {
+  if (args[1]) { newArgs.push(args[1]); newArgs.push("--compile"); }
+} else if (args[0] === "exec") {
+  if (args[1]) { newArgs.push(args[1]); newArgs.push("--exec"); }
+} else if (args[0] === "build") {
+  if (args[1]) { newArgs.push(args[1]); newArgs.push("--llvm"); }
+} else if (args[0] === "init") {
+  newArgs.push("--init");
+  if (args[1]) newArgs.push(args[1]);
+} else if (args[0] === "install" || args[0] === "add") {
+  newArgs.push("--add");
+  if (args[1]) newArgs.push(args[1]);
+} else {
+  // pass through raw (legacy mode)
+  newArgs.push(...args);
+}
+
+process.argv = [process.argv[0], distMain, ...newArgs];
+
+import(distMain).catch((err) => {
+  console.error("Vektor error:", err.message);
+  process.exit(1);
+});
